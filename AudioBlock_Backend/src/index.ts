@@ -3,6 +3,7 @@ import app from "./app";
 import AppDataSource from "./config/db";
 import { initRabbitMQ } from "./config/rabbitmq";
 import { startSongWorker } from "./workers/SongProcessorWorker";
+import { startAIGenerationWorker } from "./workers/AIGenerationWorker";
 import fs from "fs";
 import path from "path";
 import { runSeeders } from "./seeders";
@@ -96,6 +97,7 @@ async function main() {
     initRabbitMQ().then(() => {
       console.log("✅ RabbitMQ initialized, starting workers");
       startSongWorker();
+      startAIGenerationWorker();
       console.log("✅ Background workers started");
     }).catch(err => {
       console.error("⚠️ RabbitMQ initialization failed:", err);

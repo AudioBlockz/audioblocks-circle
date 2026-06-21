@@ -8,8 +8,11 @@ import multer from "multer";
 import { CreateCoverDTO } from "../dtos/CreateCoverDTO";
 import fs from "fs";
 import { SongController } from "../controllers/SongController";
+import { AIGenerationController } from "../controllers/AIGenerationController";
+import { GenerateSongDTO } from "../dtos/GenerateSongDTO";
 
 const uploadController = new UploadController();
+const aiGenerationController = new AIGenerationController();
 const router = Router();
 // const upload = multer({ dest: "uploads/chunks/" });
 
@@ -40,5 +43,8 @@ router.post("/upload/finalize", authArtistMiddleware, validateDTO(FinalizeUpload
 
 // Stream Songs
 router.get("/stream/:id", SongController.streamSong);
+
+// AI music generation
+router.post("/ai/generate", authArtistMiddleware, validateDTO(GenerateSongDTO), aiGenerationController.generateSong);
 
 export default router;

@@ -52,10 +52,22 @@ export class Song {
   loudness!: number; // LUFS
 
   @Column({ default: "processing" })
-  status!: "processing" | "ready" | "failed";
+  status!: "ai_generating" | "processing" | "ready" | "failed";
 
   @Column({ nullable: true })
   metadataCid!: string;
+
+  @Column({ default: false })
+  isAiGenerated!: boolean;
+
+  @Column({ nullable: true })
+  aiPrompt!: string;
+
+  @Column({ nullable: true })
+  aiProvider!: string;
+
+  @Column({ nullable: true })
+  aiJobId!: string;
 
   @Column({ type: "json", nullable: true })
   metadata: any;
