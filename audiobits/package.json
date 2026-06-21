@@ -1,26 +1,17 @@
 {
-  "name": "stacks_audiobits-tests",
+  "name": "audiobits",
   "version": "1.0.0",
-  "description": "Run unit tests on this project.",
-  "type": "module",
+  "description": "On-chain artist and song registry contract.",
+  "type": "commonjs",
   "private": true,
   "scripts": {
-    "test": "vitest run",
-    "test:report": "vitest run -- --coverage --costs",
-    "test:watch": "chokidar \"tests/**/*.ts\" \"contracts/**/*.clar\" -c \"npm run test:report\""
+    "compile": "hardhat compile",
+    "test": "hardhat test"
   },
   "author": "",
   "license": "ISC",
-  "dependencies": {
-    "@hirosystems/clarinet-sdk": "^3.6.0",
-    "@stacks/transactions": "^7.2.0",
-    "@types/node": "^24.4.0",
-    "chokidar-cli": "^3.0.0",
-    "vitest": "^3.2.4",
-    "vitest-environment-clarinet": "^2.3.0"
-  },
   "devDependencies": {
-    "@hirosystems/clarinet-sdk-wasm": "^3.8.1",
-    "vite": "^7.1.9"
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.0"
   }
 }

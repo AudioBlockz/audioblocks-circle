@@ -1,13 +1,14 @@
-
-**/settings/Mainnet.toml
-**/settings/Testnet.toml
+node_modules
 .cache/**
-history.txt
-
 logs
 *.log
 npm-debug.log*
 coverage
 *.info
-costs-reports.json
-node_modules
+
+# Hardhat
+artifacts
+cache
+typechain
+typechain-types
+.env
