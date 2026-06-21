@@ -1,0 +1,27 @@
+{
+  "name": "circle-deploy",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "create-wallet": "tsx --env-file=.env create-wallet.ts",
+    "deploy-registry": "tsx --env-file=.env deploy-registry.ts",
+    "deploy-payment-token": "tsx --env-file=.env deploy-payment-token.ts",
+    "deploy-royalty": "tsx --env-file=.env deploy-royalty.ts",
+    "check-transaction": "tsx --env-file=.env check-transaction.ts",
+    "get-contract": "tsx --env-file=.env get-contract.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "type": "module",
+  "dependencies": {
+    "@circle-fin/developer-controlled-wallets": "^10.6.0",
+    "@circle-fin/smart-contract-platform": "^10.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3"
+  }
+}
