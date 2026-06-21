@@ -1,0 +1,17 @@
+.env
+.env.docker
+node_modules/
+package-lock.json
+dist/
+logs/
+
+coverage/
+
+newrelic_agent.log
+logs/newrelic*
+
+./dist
+
+uploads/
+simulateUpload.js
+simulateUploadOld.js
