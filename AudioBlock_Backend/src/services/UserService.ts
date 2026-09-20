@@ -2,11 +2,6 @@ import { Repository } from "typeorm";
 import AppDataSource from "../config/db";
 import { User } from "../entities/User";
 import { CreateUserDTO } from "../dtos/CreateUserDTO";
-import { validate } from "class-validator";
-import { verifyMessage } from "ethers";
-import jwt from "jsonwebtoken";
-import dotenv from "dotenv";
-import redis from "../config/redis";
 import { TransactionLog } from "../entities/TransactionLog";
 import { ArtistService } from "./Artist/ArtistService";
 
@@ -17,46 +12,14 @@ export class UserService {
     constructor() {
         this.userRepo = AppDataSource.getRepository(User);
         this.transactionLogRepo = AppDataSource.getRepository(TransactionLog);
-        dotenv.config();
         this.artistService = new ArtistService();
     }
 
-    async createUser(data: CreateUserDTO): Promise<{ user: User; token: string }> {
+    // Identity (wallet ownership, email) is already verified by Privy before
+    // this is called — see AuthService.sync. This only ever creates a user
+    // for a privyUserId that isn't in the database yet.
+    async createUser(data: CreateUserDTO): Promise<User> {
         const dto = Object.assign(new CreateUserDTO(), data);
-
-        const recoveredAddress = verifyMessage(dto.message, dto.signature);
-
-        if (recoveredAddress.toLowerCase() !== dto.walletAddress.toLowerCase()) {
-            throw new Error("Invalid signature");
-        }
-
-        // Extract nonce from message
-        // const nonceMatch = dto.message.match(/Nonce: (\w+)/);
-        const nonceMatch = dto.message.match(/Nonce:\s*([A-Za-z0-9-]+)/);
-
-        if (!nonceMatch) throw new Error("Nonce missing in message");
-        const nonce = nonceMatch[1];
-
-        // Verify nonce exists and matches stored one
-        const storedNonce = await redis.get(`nonce:${dto.email}`);
-        console.log("Stored nonce:", storedNonce);
-        console.log("Received nonce:", nonce);
-
-        if (!storedNonce) {
-            throw new Error("Nonce expired");
-        }
-
-        if (storedNonce !== nonce) {
-            throw new Error("Nonce mismatch");
-        }
-
-
-        // if (!storedNonce || storedNonce !== nonce) {
-        //     throw new Error("Invalid or expired nonce");
-        // }
-
-        //  Delete nonce immediately (one-time use)
-        await redis.del(`nonce:${dto.email}`);
 
         if (await this.userRepo.findOneBy({ walletAddress: dto.walletAddress })) {
             throw new Error("User already exists");
@@ -65,43 +28,28 @@ export class UserService {
         let onChainAccount: string | undefined = undefined;
 
         if (dto.role === "artist") {
-            onChainAccount = await this.artistService.setupArtistAccountOnChain(dto.walletAddress);
+            const artistName = dto.username || dto.name || `Artist ${dto.walletAddress.slice(0, 8)}`;
+            onChainAccount = await this.artistService.setupArtistAccountOnChain(dto.walletAddress, artistName);
             console.log("On-chain account setup initiated:", onChainAccount);
         }
 
         const user = this.userRepo.create(dto);
         const savedUser = await this.userRepo.save(user);
 
-        const log = this.transactionLogRepo.create({
-            user_id: savedUser.id,
-            txHash: onChainAccount ?? undefined,
-            action: "CREATE_USER",
-            description: `User with wallet ${savedUser.walletAddress} created.`,
-        });
-        await this.transactionLogRepo.save(log);
-        
-        const payload = {
-            id: savedUser.id,
-            dynamixUserId: savedUser.dynamixUserId,
-            email: savedUser.email,
-            walletAddress: savedUser.walletAddress,
-            role: savedUser.role,
-            username: savedUser.username,
-            profileImage: savedUser.profileImage,
-            name: savedUser.name,
-            rewardPoints: savedUser.rewardPoints,
-            totalStreams: savedUser.totalStreams,
-            totalStreamTime: savedUser.totalStreamTime,
-            uniqueListeners: savedUser.uniqueListeners
-        };
+        // transactions_logs records on-chain events specifically (every
+        // other write to it always carries a real tx hash) — a listener
+        // signup has no on-chain step, so there's nothing to log here.
+        if (onChainAccount) {
+            const log = this.transactionLogRepo.create({
+                user_id: savedUser.id,
+                txHash: onChainAccount,
+                action: "CREATE_USER",
+                description: `User with wallet ${savedUser.walletAddress} created.`,
+            });
+            await this.transactionLogRepo.save(log);
+        }
 
-        const JWT_SECRET = process.env.JWT_SECRET;
-        if (!JWT_SECRET) throw new Error("JWT_SECRET is not defined");
-
-        const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "1d" });
-
-        return { user: savedUser, token };
-
+        return savedUser;
     }
 
     async getUserByWalletAddress(walletAddress: string): Promise<User | null> {

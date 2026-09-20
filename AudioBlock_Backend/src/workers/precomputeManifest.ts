@@ -1,9 +1,7 @@
-import AWS from "aws-sdk";
 import AppDataSource from "../config/db";
 import { Song } from "../entities/Song";
 import redis from "../config/redis";
-
-const s3 = new AWS.S3({ region: process.env.AWS_REGION });
+import { s3 } from "../config/s3";
 
 const CACHE_TTL = Number(process.env.MANIFEST_CACHE_TTL || 300); // seconds
 const SIGNED_EXPIRES = Number(process.env.SIGNED_URL_EXPIRES || 300);

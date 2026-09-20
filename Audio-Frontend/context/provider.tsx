@@ -1,65 +1,48 @@
 "use client"
-import {
-  DynamicContextProvider,
-} from "@dynamic-labs/sdk-react-core";
-import { DynamicWagmiConnector } from "@dynamic-labs/wagmi-connector";
-import { createConfig, WagmiProvider } from "wagmi";
+import { PrivyProvider } from "@privy-io/react-auth";
+import { WagmiProvider, createConfig } from "@privy-io/wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http } from "viem";
 import { mainnet, sepolia } from "viem/chains";
 import { arcTestnet } from "../config/chains";
-import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
 import { ReactNode } from "react";
-import { SdkViewSectionType, SdkViewType } from "@dynamic-labs/sdk-api";
+import { AuthProvider } from "./AuthContext";
+import { PlayerProvider } from "./PlayerContext";
 
-
-const config = createConfig({
-	chains: [mainnet, sepolia, arcTestnet],
-	multiInjectedProviderDiscovery: false,
-	transports: {
-		[mainnet.id]: http(),
+export const wagmiConfig = createConfig({
+  chains: [arcTestnet, mainnet, sepolia],
+  transports: {
     [arcTestnet.id]: http(),
-    [sepolia.id]: http()
-	},
+    [mainnet.id]: http(),
+    [sepolia.id]: http(),
+  },
 });
 
 const queryClient = new QueryClient();
 
-const  Provider=({ children }: { children: ReactNode })=> {
+const Provider = ({ children }: { children: ReactNode }) => {
   return (
-    <DynamicContextProvider
-      settings={{
-				environmentId: "c686da1e-ac86-4bd4-a2f4-5fe6ff42ed85",
-				walletConnectors: [EthereumWalletConnectors],
-        overrides: {
-      views: [
-        {
-          type: SdkViewType.Login,
-          sections: [
-            {
-              type: SdkViewSectionType.Email,
-            },
-            {
-              type: SdkViewSectionType.Separator,
-              label: "Or",
-            },
-            {
-              type: SdkViewSectionType.Social,
-              defaultItem: "google",
-            },
-          ],
+    <PrivyProvider
+      appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID as string}
+      config={{
+        loginMethods: ["email", "wallet", "google"],
+        embeddedWallets: {
+          ethereum: {
+            createOnLogin: "users-without-wallets",
+          },
         },
-      ]}
-			}}
+        defaultChain: arcTestnet,
+        supportedChains: [arcTestnet, mainnet, sepolia],
+      }}
     >
-      <WagmiProvider config={config}>
-        <QueryClientProvider client={queryClient}>
-          <DynamicWagmiConnector>
-            {children}
-          </DynamicWagmiConnector>
-        </QueryClientProvider>
-      </WagmiProvider>
-    </DynamicContextProvider>
+      <QueryClientProvider client={queryClient}>
+        <WagmiProvider config={wagmiConfig}>
+          <AuthProvider>
+            <PlayerProvider>{children}</PlayerProvider>
+          </AuthProvider>
+        </WagmiProvider>
+      </QueryClientProvider>
+    </PrivyProvider>
   );
 }
 

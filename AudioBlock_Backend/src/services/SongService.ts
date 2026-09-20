@@ -1,5 +1,5 @@
 import { Repository } from "typeorm";
-import { Song } from "../entities/Song";
+import { Song, SongMood } from "../entities/Song";
 import { User } from "../entities/User";
 import AppDataSource from "../config/db";
 import dotenv from "dotenv";
@@ -7,12 +7,9 @@ import path from "path";
 import fs from "fs";
 import { s3 } from "../config/s3";
 import { getChannel } from "../config/rabbitmq";
-import { getLiskPublicClient } from "../config/dynamic";
-import { authenticatedEvmClient, keyShare } from "../utils/dynamicUtils";
-import { encodeFunctionData } from "viem";
-import { SongFacetABI } from "../abis/SongFacetABI";
-import { LiskSepoliaFacetAddress } from "../utils/facets";
-import { liskSepolia } from "viem/chains";
+import { ArcContractAddress } from "../utils/arcContracts";
+import { AudioBitsRegistryABI } from "../abis/AudioBitsRegistry";
+import { sendCircleContractTransaction } from "../utils/circleWallet";
 
 export class SongService {
   private songRepo: Repository<Song>;
@@ -83,8 +80,10 @@ export class SongService {
     artistAddress: string,
     description: string,
     genre: string,
+    mood: SongMood[],
     coverArtPath: string,
-    composers: string
+    composers: string,
+    unreleased: boolean = false
   ): Promise<Song> {
     const tempDir = path.join("uploads/temp", fileId);
     const mergedDir = "uploads/merged";
@@ -165,8 +164,10 @@ export class SongService {
       status: "processing",
       description,
       genre,
+      mood,
       coverArtPath,
       composers,
+      unreleased,
     });
     await this.songRepo.save(song);
 
@@ -187,82 +188,26 @@ export class SongService {
 
   async uploadSongToBlockchain(
     user_id: string,
-    metadataCid: string
+    title: string,
+    fileHash: `0x${string}`
   ): Promise<string> {
     try {
-      const publicClient = await getLiskPublicClient();
-      const evmClient = await authenticatedEvmClient();
-
-      if (!evmClient) {
-        throw new Error("EVM client not initialized");
-      }
-
       const userRepo = AppDataSource.getRepository(User);
       const user = await userRepo.findOneBy({ id: user_id });
       if (!user) {
         throw new Error("User not found");
       }
 
-      const walletAddress = user.walletAddress;
-
-      const data = encodeFunctionData({
-        abi: SongFacetABI,
-        functionName: "uploadAndMintSong",
-        args: [
-          metadataCid,
-          0, // albumId
-        ],
+      return await sendCircleContractTransaction({
+        walletAddress: user.walletAddress,
+        to: ArcContractAddress.Registry,
+        abi: AudioBitsRegistryABI,
+        functionName: "registerSong",
+        args: [title, fileHash],
       });
-
-      const transactionRequest = {
-        to: LiskSepoliaFacetAddress.Diamond as `0x${string}`,
-        data,
-        account: walletAddress as `0x${string}`,
-      };
-
-      const preparedTx = await publicClient.prepareTransactionRequest({
-        ...transactionRequest,
-        chain: liskSepolia,
-      });
-
-      console.log("Prepared transaction:", preparedTx);
-
-      const signedTx = await evmClient.signTransaction({
-        senderAddress: walletAddress as `0x${string}`,
-        externalServerKeyShares: await keyShare(walletAddress),
-        transaction: {
-          to: preparedTx.to,
-          data: preparedTx.data,
-          chainId: preparedTx.chainId,
-          gas: preparedTx.gas,
-          maxFeePerGas: preparedTx.maxFeePerGas,
-          maxPriorityFeePerGas: preparedTx.maxPriorityFeePerGas,
-          nonce: preparedTx.nonce,
-          type: "eip1559", // Explicitly set transaction type
-        },
-      });
-
-      console.log("Signed transaction:", signedTx);
-
-      const txHash = await publicClient.sendRawTransaction({
-        serializedTransaction: signedTx as `0x${string}`,
-      });
-      console.log(`Transaction sent with hash: ${txHash}`);
-
-      // Wait for confirmation
-      const receipt = await publicClient.waitForTransactionReceipt({
-        hash: txHash,
-      });
-
-      console.log(`Transaction confirmed in block ${receipt.blockNumber}`);
-
-      console.log(`Transaction sent with hash: ${txHash}`);
-      return txHash;
     } catch (error) {
-      console.error("Error setting up artist account on-chain:", error);
-      throw new Error(
-        "ArtistService: Error setting up artist account on-chain"
-      );
+      console.error("Error registering song on-chain:", error);
+      throw new Error("SongService: Error registering song on-chain");
     }
   }
 }

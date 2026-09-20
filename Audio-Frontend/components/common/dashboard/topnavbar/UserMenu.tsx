@@ -3,20 +3,27 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
+import axios from 'axios';
+import { usePrivy } from '@privy-io/react-auth';
 import { FiUser, FiRepeat, FiFolder, FiX } from 'react-icons/fi';
 import { FaWallet } from 'react-icons/fa';
 import Link from 'next/link';
-import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
 import { Auth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
-import Cookies from 'js-cookie';
+import { truncateAddress } from '@/lib/utils';
 
 const UserMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const { user } = useDynamicContext();
-  const { handleLogOut } = Auth();
+  const { profile, handleLogOut } = Auth();
+  const { getAccessToken } = usePrivy();
    const route = useRouter();
+
+  const displayName = profile?.username || profile?.name || profile?.email?.split('@')[0] || 'there';
+  const avatarSrc = profile?.profileImage || '/dashboard/profiledefault.png';
+
+  const [balance, setBalance] = useState<string | null>(null);
+  const [loadingBalance, setLoadingBalance] = useState(false);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -28,11 +35,31 @@ const UserMenu = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const logOut=()=>{
-    Cookies.remove("audioblocks_jwt");
-    handleLogOut();
-		route.push("/");
+  // Fetched fresh each time the menu opens rather than once on mount, so it
+  // reflects deposits/payouts that happened since the last open.
+  useEffect(() => {
+    if (!isOpen || !profile) return;
+    setLoadingBalance(true);
+    (async () => {
+      try {
+        const accessToken = await getAccessToken();
+        const url = process.env.NEXT_PUBLIC_API_URL;
+        const res = await axios.get(`${url}/api/wallet/balance`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        setBalance(res.data?.data?.balance ?? null);
+      } catch {
+        setBalance(null);
+      } finally {
+        setLoadingBalance(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, profile?.id]);
 
+  const logOut = async () => {
+    await handleLogOut();
+    route.push("/");
   }
 
   return (
@@ -43,7 +70,7 @@ const UserMenu = () => {
         className="w-8 h-8 rounded-full overflow-hidden border border-gray-700 cursor-pointer"
       >
         <Image
-          src="/tech.jpg"
+          src={avatarSrc}
           alt="User"
           width={40}
           height={40}
@@ -71,16 +98,16 @@ const UserMenu = () => {
 
             <div className="flex items-center truncate border-b pb-3 gap-3 mb-8 mt-2">
               <Image
-                src="/tech.jpg"
+                src={avatarSrc}
                 alt="User Avatar"
                 width={50}
                 height={50}
-                className="rounded-full"
+                className="rounded-full w-[50px] h-[50px] object-cover"
               />
               <div>
-                <p className="font-semibold text-white text-sm">Pete Lisk</p>
+                <p className="font-semibold text-white text-sm">{displayName}</p>
                 <p className="text-xs overflow-hidden text-ellipsis  text-[#A3A3A3]">
-                  {user?.email}
+                  {profile?.email ?? (profile?.walletAddress && truncateAddress(profile.walletAddress))}
                 </p>
               </div>
             </div>
@@ -114,7 +141,9 @@ const UserMenu = () => {
               <div className="flex items-center gap-3 text-gray-400 mt-8">
                 <FaWallet />
                 <span>Balance:</span>
-                <span className="font-medium text-[#666C6C]">11000 ABT</span>
+                <span className="font-medium text-[#666C6C]">
+                  {loadingBalance ? '…' : balance !== null ? `${Number(balance).toLocaleString()} USDC` : '—'}
+                </span>
               </div>
               <button className='cursor-pointer hover:text-[#666C6C] transition' onClick={logOut}>Log out</button>
             </div>

@@ -3,13 +3,15 @@ import { UploadController } from "../controllers/UploadController";
 import { validateDTO } from "../middlewares/validate";
 import { FinalizeUploadDTO } from "../dtos/FinalizeUploadDTO";
 import { UploadChunkDTO } from "../dtos/UploadChunkDTO";
-import { authArtistMiddleware } from "../middlewares/authMiddleware";
+import { authArtistMiddleware, authMiddleware, optionalAuthMiddleware } from "../middlewares/authMiddleware";
 import multer from "multer";
 import { CreateCoverDTO } from "../dtos/CreateCoverDTO";
 import fs from "fs";
 import { SongController } from "../controllers/SongController";
+import { SongInteractionController } from "../controllers/SongInteractionController";
 import { AIGenerationController } from "../controllers/AIGenerationController";
 import { GenerateSongDTO } from "../dtos/GenerateSongDTO";
+import { AddCommentDTO } from "../dtos/AddCommentDTO";
 
 const uploadController = new UploadController();
 const aiGenerationController = new AIGenerationController();
@@ -41,8 +43,27 @@ router.post("/upload/cover", authArtistMiddleware, upload.single("cover"), valid
 router.post("/upload/finalize", authArtistMiddleware, validateDTO(FinalizeUploadDTO), uploadController.finalizeUpload);
 
 
-// Stream Songs
-router.get("/stream/:id", SongController.streamSong);
+// Browse + stream songs
+router.get("/", optionalAuthMiddleware, SongController.listSongs);
+router.get("/stats/mine", authArtistMiddleware, SongController.getMyStats);
+router.get("/stream/:id", optionalAuthMiddleware, SongController.streamSong);
+
+// Likes + comments
+router.post("/:id/like", authMiddleware, SongInteractionController.toggleLike);
+router.get("/:id/comments", SongInteractionController.listComments);
+router.post("/:id/comments", authMiddleware, validateDTO(AddCommentDTO), SongInteractionController.addComment);
+// Mood matching calls out to an LLM and can comfortably exceed app.ts's
+// global 30s request timeout — override it just for this route rather than
+// loosening the timeout everywhere.
+router.post(
+  "/mood-match",
+  (req, res, next) => {
+    req.setTimeout(120000);
+    res.setTimeout(120000);
+    next();
+  },
+  SongController.moodMatch
+);
 
 // AI music generation
 router.post("/ai/generate", authArtistMiddleware, validateDTO(GenerateSongDTO), aiGenerationController.generateSong);

@@ -1,110 +1,91 @@
 import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
+import { PrivyClient } from "@privy-io/server-auth";
+import AppDataSource from "../config/db";
+import { User, UserRole } from "../entities/User";
 
-interface JwtPayload {
-  id: string; // or userId, depending on how you signed it
-  role?: string;
-  email?: string;
-  walletAddress?: string;
-  username?: string;
-  name?: string;
+const privy = new PrivyClient(
+  process.env.PRIVY_APP_ID as string,
+  process.env.PRIVY_APP_SECRET as string
+);
+
+async function resolveUser(req: Request): Promise<User | null> {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return null;
+  }
+
+  const token = authHeader.split(" ")[1];
+  const { userId: privyUserId } = await privy.verifyAuthToken(token);
+
+  return AppDataSource.getRepository(User).findOneBy({ privyUserId });
 }
 
-export const authArtistMiddleware = (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+function requireRole(role: UserRole) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = await resolveUser(req);
+
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: "Unauthorized: Invalid or missing token",
+        });
+      }
+
+      if (user.role !== role) {
+        return res.status(403).json({
+          success: false,
+          message: `Forbidden: ${role} role required`,
+        });
+      }
+
+      (req as any).user = user;
+      next();
+    } catch (error) {
+      console.error("Auth error:", error);
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: Invalid or expired token",
+      });
+    }
+  };
+}
+
+export const authArtistMiddleware = requireRole(UserRole.ARTIST);
+export const authListenerMiddleware = requireRole(UserRole.LISTENER);
+export const authAdminMiddleware = requireRole(UserRole.ADMIN);
+
+// Any logged-in user, regardless of role — for endpoints (like reading
+// your own wallet balance) that every account type should be able to hit.
+export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
   try {
-    // 1️⃣ Get token from Authorization header
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    const user = await resolveUser(req);
+    if (!user) {
       return res.status(401).json({
         success: false,
-        message: "Unauthorized: No token provided",
+        message: "Unauthorized: Invalid or missing token",
       });
     }
-
-    const token = authHeader.split(" ")[1];
-
-    // 2 Verify token
-    const secret = process.env.JWT_SECRET!;
-    const decoded = jwt.verify(token, secret) as JwtPayload;
-
-    if (!decoded) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized: Invalid token",
-      });
-    }
-
-    if (decoded.role !== "artist") {
-      return res.status(403).json({
-        success: false,
-        message: "Forbidden: Artist role required",
-      });
-    }
-
-    // 3️ Attach user to request
-    (req as any).user = decoded;
-
-    next(); // 4 move to next route handler
+    (req as any).user = user;
+    next();
   } catch (error) {
-    console.error("JWT verification error:", error);
+    console.error("Auth error:", error);
     return res.status(401).json({
       success: false,
       message: "Unauthorized: Invalid or expired token",
     });
   }
-};
+}
 
-
-export const authListenerMiddleware = (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+// Attaches req.user when a valid token is present, but never rejects the
+// request — for endpoints public to anonymous visitors that still want to
+// personalize the response for a logged-in caller (e.g. "have I voted?").
+export async function optionalAuthMiddleware(req: Request, _res: Response, next: NextFunction) {
   try {
-    // 1️⃣ Get token from Authorization header
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized: No token provided",
-      });
-    }
-
-    const token = authHeader.split(" ")[1];
-
-    // 2 Verify token
-    const secret = process.env.JWT_SECRET!;
-    const decoded = jwt.verify(token, secret) as JwtPayload;
-
-    if (!decoded) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized: Invalid token",
-      });
-    }
-
-    if (decoded.role !== "listener") {
-      return res.status(403).json({
-        success: false,
-        message: "Forbidden: Listener role required",
-      });
-    }
-
-    // 3️ Attach user to request
-    (req as any).user = decoded;
-
-    next(); // 4 move to next route handler
+    const user = await resolveUser(req);
+    if (user) (req as any).user = user;
   } catch (error) {
-    console.error("JWT verification error:", error);
-    return res.status(401).json({
-      success: false,
-      message: "Unauthorized: Invalid or expired token",
-    });
+    console.error("Optional auth error (ignored):", error);
   }
-};
+  next();
+}

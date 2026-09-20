@@ -27,7 +27,7 @@ export class User {
   id!: string;
 
   @Column({ unique: true, nullable: true })
-  dynamixUserId?: string;
+  privyUserId?: string;
 
   @Column({ nullable: true })
   profileImage?: string;

@@ -1,8 +1,23 @@
 'use client';
 
-import { ArrowRight, ArrowUp } from 'lucide-react';
+import { ArrowUp } from 'lucide-react';
+import { usePrivy } from '@privy-io/react-auth';
+import { useRouter } from 'next/navigation';
+import { Auth } from '@/hooks/useAuth';
 
 const ArtistUpgrade = () => {
+  const { authenticated } = usePrivy();
+  const route = useRouter();
+  const { loginAsArtist } = Auth();
+
+  const handleJoinAsArtist = () => {
+    if (!authenticated) {
+      loginAsArtist();
+    } else {
+      route.push('/artist-hub');
+    }
+  };
+
   return (
     <section className=" flex flex-col items-center justify-center  relative overflow-hidden">
     
@@ -36,9 +51,12 @@ const ArtistUpgrade = () => {
                 </div>
           </button>
 
-          {/* Join Waitlist Button */}
-          <button className="px-6 py-3 bg-transparent text-white font-bold rounded-full hover:scale-105 transition-all duration-200 flex items-center gap-3 shadow-lg hover:shadow-xl border-[1px] border-[#F2AFC9]">
-              Join waitlist
+          {/* Join as Artist Button */}
+          <button
+            onClick={handleJoinAsArtist}
+            className="px-6 py-3 bg-transparent text-white font-bold rounded-full hover:scale-105 transition-all duration-200 flex items-center gap-3 shadow-lg hover:shadow-xl border-[1px] border-[#F2AFC9]"
+          >
+              Join as Artist
                 <div className="bg-black rounded-full p-1">
                   <ArrowUp className="h-4 w-4 rotate-45" />
                 </div>

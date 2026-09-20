@@ -1,86 +1,94 @@
-import { validate } from "class-validator";
-import { JWTDTO } from "../dtos/JWTDTO";
-import { verifyMessage } from "ethers";
+import { PrivyClient } from "@privy-io/server-auth";
 import { Repository } from "typeorm";
-import { User } from "../entities/User";
+import { User, UserRole } from "../entities/User";
 import AppDataSource from "../config/db";
-import jwt from "jsonwebtoken";
+import { CreateUserDTO } from "../dtos/CreateUserDTO";
+import { UserService } from "./UserService";
+import { createCircleArcWallet } from "../utils/circleWallet";
 import dotenv from "dotenv";
-import { profile } from "console";
-import redis from "../config/redis";
-import { randomBytes } from "crypto";
+
+dotenv.config();
+
+const PRIVY_APP_ID = process.env.PRIVY_APP_ID as string;
+const PRIVY_APP_SECRET = process.env.PRIVY_APP_SECRET as string;
+
+const privy = new PrivyClient(PRIVY_APP_ID, PRIVY_APP_SECRET);
 
 export class AuthService {
   private userRepo: Repository<User>;
+  private userService: UserService;
 
   constructor() {
     this.userRepo = AppDataSource.getRepository(User);
-    dotenv.config();
+    this.userService = new UserService();
   }
 
-  async getNonce(email: string): Promise<any> {
-    if (!email) {
-      throw new Error("Email is required");
-    }
-
-    const nonce = randomBytes(16).toString("hex");
-
-    // store nonce with 5-min expiry
-    await redis.set(`nonce:${email}`, nonce, "EX", 300);
-
-    console.log("Generated nonce:", nonce);
-    console.log("Nonce from redis:", await redis.get(`nonce:${email}`));
-    return nonce;
+  // Verifies a Privy access token locally against Privy's JWKS and returns
+  // the Privy user id (DID) it was issued for. Throws if the token is
+  // missing, expired, or was not issued by this app's Privy instance.
+  async verifyAccessToken(accessToken: string): Promise<string> {
+    const { userId } = await privy.verifyAuthToken(accessToken);
+    return userId;
   }
 
-  async login(data: JWTDTO): Promise<{ user: User; token: string }> {
-    const dto = Object.assign(new JWTDTO(), data);
-    const errors = await validate(dto);
-    const JWT_SECRET = process.env.JWT_SECRET as string;
+  async getUserByAccessToken(accessToken: string): Promise<User | null> {
+    const privyUserId = await this.verifyAccessToken(accessToken);
+    return this.userRepo.findOneBy({ privyUserId });
+  }
 
-    if (!JWT_SECRET) {
-      throw new Error("JWT_SECRET not set in environment variables");
+  // Idempotent "ensure this Privy identity has an app profile" call. First
+  // sign-in creates the row (pulling wallet/email straight from Privy, not
+  // from client-supplied fields), later sign-ins just fetch it.
+  async sync(
+    accessToken: string,
+    role?: UserRole,
+    username?: string
+  ): Promise<{ user: User; isNewUser: boolean }> {
+    const privyUserId = await this.verifyAccessToken(accessToken);
+
+    const existing = await this.userRepo.findOneBy({ privyUserId });
+    if (existing) {
+      return { user: existing, isNewUser: false };
     }
 
-    if (errors.length > 0) {
-      throw new Error(errors.map((error) => error.constraints).join(", "));
-    }
+    const privyUser = await privy.getUser(privyUserId);
+    // Login/session verification stays on Privy (unaffected by the Arc
+    // Testnet signing block — that's a separate Privy product surface).
+    // The wallet itself, though, is now a Circle developer-controlled
+    // wallet rather than Privy's embedded wallet: Privy's app is blocked
+    // from signing ANY transaction on Arc Testnet ("App is not authorized
+    // to transact on chain eip155:5042002", unresolved), so a
+    // Privy-managed wallet address would be unusable for on-chain calls.
+    // See the "Migrate Off Privy" plan, Phase A.
+    const wallet = await createCircleArcWallet(process.env.CIRCLE_WALLET_SET_ID!);
+    const walletAddress = wallet.address;
+    const email = privyUser.email?.address ?? privyUser.google?.email;
 
-    if (dto.message) {
-      const nonceMatch = dto.message.match(/Nonce: (\w+)/);
-      if (!nonceMatch) throw new Error("Nonce missing in message");
-      const nonce = nonceMatch[1];
+    const dto = Object.assign(new CreateUserDTO(), {
+      privyUserId,
+      walletAddress,
+      email,
+      role: role ?? UserRole.LISTENER,
+      username,
+    });
 
-      const storedNonce = await redis.get(`nonce:${dto.email}`);
-      console.log("Stored nonce:", storedNonce);
-      if (!storedNonce || storedNonce !== nonce) {
-        throw new Error("Invalid or expired nonce");
+    try {
+      const user = await this.userService.createUser(dto);
+      return { user, isNewUser: true };
+    } catch (error: any) {
+      // Two concurrent /sync calls for a brand-new user (e.g. the same login
+      // triggering this from more than one mounted component) can both pass
+      // the `existing` check above before either commits. Postgres' unique
+      // constraint on privyUserId is what actually prevents the duplicate —
+      // the loser of that race should just return the winner's row instead
+      // of surfacing a raw insert failure.
+      if (error?.code === "23505" || error?.driverError?.code === "23505") {
+        const user = await this.userRepo.findOneBy({ privyUserId });
+        if (user) {
+          return { user, isNewUser: false };
+        }
       }
-
-      // Delete nonce immediately (one-time use)
-      await redis.del(`nonce:${dto.email}`);
+      throw error;
     }
-
-    const user = await this.userRepo.findOneBy({ email: dto.email });
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    const payload = {
-      id: user.id,
-      dynamixUserId: user.dynamixUserId,
-      email: user.email,
-      walletAddress: user.walletAddress,
-      role: user.role,
-      username: user.username,
-      profileImage: user.profileImage,
-      name: user.name,
-      rewardPoints: user.rewardPoints,
-      totalStreams: user.totalStreams,
-      totalStreamTime: user.totalStreamTime,
-      uniqueListeners: user.uniqueListeners,
-    };
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "1d" });
-    return { user, token };
   }
 }

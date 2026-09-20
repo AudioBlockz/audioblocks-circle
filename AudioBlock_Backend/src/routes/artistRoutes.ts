@@ -20,5 +20,8 @@ router.patch("/update-profile", authArtistMiddleware, upload.fields([
   { name: "pageCover", maxCount: 1 },
 ]), artistProfileController.updateProfile);
 
+// Public artist profile — no auth, viewable by any visitor.
+router.get("/:id", artistProfileController.getPublicProfile);
+
 
 export default router;

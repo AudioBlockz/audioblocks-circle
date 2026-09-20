@@ -1,7 +1,9 @@
 import Sidebar from "@/components/common/dashboard/sidebar";
 import TopNavbar from "@/components/common/dashboard/topnavbar";
-import Player from "@/components/common/Player";
 
+// Player itself is mounted once in the root layout now (so it survives
+// navigating away from /dashboard entirely) — this layout just keeps the
+// bottom padding so its own content doesn't sit behind the fixed player bar.
 const DashboardLayout=({ children }: { children: React.ReactNode })=> {
   return (
     <div className="w-full">
@@ -13,7 +15,6 @@ const DashboardLayout=({ children }: { children: React.ReactNode })=> {
         <main className="flex-1 px-4 md:px-6 py-4 ">
           {children}
         </main>
-          <Player/>
       </div>
     </div>
   )

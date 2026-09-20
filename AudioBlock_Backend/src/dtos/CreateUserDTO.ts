@@ -9,12 +9,12 @@ export class CreateUserDTO {
   profileImage?: string;
 
   @IsString()
-  @IsNotEmpty({ message: "Artist name is required." })
-  dynamixUserId!: string;
+  @IsNotEmpty({ message: "Privy user id is required." })
+  privyUserId!: string;
 
   @IsEnum(UserRole)
-  @IsNotEmpty({ message: "Role is required." })
-  role!: UserRole;
+  @IsOptional()
+  role?: UserRole;
 
   @IsString()
   @IsNotEmpty({ message: "Wallet address is required." })
@@ -29,7 +29,8 @@ export class CreateUserDTO {
   name?: string;
 
   @IsEmail()
-  email!: string;
+  @IsOptional()
+  email?: string;
 
   @IsOptional()
   @IsNumber()
@@ -46,11 +47,5 @@ export class CreateUserDTO {
   @IsOptional()
   @IsNumber()
   uniqueListeners?: number;
-
-  @IsString()
-  signature!: string;
-
-  @IsString()
-  message!: string;
 
 }

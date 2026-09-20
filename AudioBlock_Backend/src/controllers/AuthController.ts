@@ -1,164 +1,56 @@
-import { plainToInstance } from 'class-transformer';
-import { CreateUserDTO } from '../dtos/CreateUserDTO';
-import { JWTDTO } from '../dtos/JWTDTO';
-import { UpdateUserDTO } from '../dtos/UpdateUserDTO';
-import { User } from '../entities/User';
-import { AuthService } from '../services/AuthService';
-import { UserService } from './../services/UserService';
 import { Request, Response } from 'express';
-import { validate } from 'class-validator';
-import { formatValidationErrors, handleError } from '../utils/helpers';
-import redis from '../config/redis';
+import { AuthService } from '../services/AuthService';
+import { UserRole } from '../entities/User';
+import { signS3Url } from '../utils/s3';
 
 export class AuthController {
 
-    private userService: UserService;
     private authService: AuthService;
-    
+
     constructor() {
-        this.userService = new UserService();
         this.authService = new AuthService();
     }
 
-    getUserNonce = async (req: Request, res: Response) => {
+    // Verifies the caller's Privy access token and ensures a matching app
+    // user exists, creating one on first sign-in. Idempotent — safe to call
+    // on every app load.
+    sync = async (req: Request, res: Response) => {
         try {
-            const email = req.params.email;
-            const nonce = await this.authService.getNonce(email);
-            res.status(200).json({
+            const authHeader = req.headers.authorization;
+            if (!authHeader || !authHeader.startsWith('Bearer ')) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'Unauthorized: No token provided',
+                });
+            }
+            const accessToken = authHeader.split(' ')[1];
+
+            const { role, username } = req.body ?? {};
+            // Only these two are self-serve at signup — admin must never be
+            // assignable by an unauthenticated caller just because it's a
+            // valid UserRole value.
+            const SELF_SERVE_ROLES: string[] = [UserRole.LISTENER, UserRole.ARTIST];
+            if (role && !SELF_SERVE_ROLES.includes(role)) {
+                return res.status(400).json({
+                    success: false,
+                    message: `Invalid role: ${role}`,
+                });
+            }
+
+            const { user, isNewUser } = await this.authService.sync(accessToken, role, username);
+
+            res.status(isNewUser ? 201 : 200).json({
                 success: true,
-                message: `Audioblocks Login\nNonce: ${nonce}\nEmail: ${email}`
+                message: isNewUser ? 'User created successfully' : 'User synced successfully',
+                user: {
+                    ...user,
+                    profileImage: signS3Url(user.profileImage),
+                    pageCover: signS3Url(user.pageCover),
+                },
+                isNewUser,
             });
         } catch (error) {
-            console.log(error);
-            handleError(res, error);
-        }
-    }
-
-    register = async(req: Request, res: Response) => {
-        try {
-            if (!req.body || Object.keys(req.body).length === 0) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Request body is required" 
-                });
-            }
-
-            // Check for required fields before transformation
-            const requiredFields = ['role', 'walletAddress', 'signature', 'message', 'email', 'username'];
-            const missingFields = requiredFields.filter(field => !req.body[field]);
-            
-            if (missingFields.length > 0) {
-                return res.status(400).json({
-                    success: false, 
-                    message: `Missing required fields: ${missingFields.join(', ')}` 
-                });
-            }
-
-            // Transform with explicit options
-            const userData = plainToInstance(CreateUserDTO, req.body, {
-                enableImplicitConversion: true
-            });
-
-            console.log("Transformed userData:", userData);
-
-            // Validate the transformed data
-            const errors = await validate(userData);
-            if (errors.length > 0) {
-                console.log("Validation errors:", errors);
-                const formatted = formatValidationErrors(errors);
-                return res.status(422).json(formatted);
-            }
-
-            // Create user
-            const user = await this.userService.createUser(userData);
-            res.status(201).json({success: true, message: "User created successfully", user});
-            
-        } catch (error) {
-            console.error("Register error:", error);     
-            this.handleError(res, error);
-        }
-    }
-
-    registerListener = async(req: Request, res: Response) => {
-        try {
-            if (!req.body || Object.keys(req.body).length === 0) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Request body is required" 
-                });
-            }
-
-            // Check for required fields before transformation
-            const requiredFields = ['role', 'walletAddress', 'signature', 'message', 'email'];
-            const missingFields = requiredFields.filter(field => !req.body[field]);
-            
-            if (missingFields.length > 0) {
-                return res.status(400).json({
-                    success: false, 
-                    message: `Missing required fields: ${missingFields.join(', ')}` 
-                });
-            }
-
-            // Transform with explicit options
-            const userData = plainToInstance(CreateUserDTO, req.body, {
-                enableImplicitConversion: true
-            });
-
-            console.log("Transformed userData:", userData);
-
-            // Validate the transformed data
-            const errors = await validate(userData);
-            if (errors.length > 0) {
-                console.log("Validation errors:", errors);
-                const formatted = formatValidationErrors(errors);
-                return res.status(422).json(formatted);
-            }
-
-            // Create user
-            const user = await this.userService.createUser(userData);
-            res.status(201).json({success: true, message: "User created successfully", user});
-            
-        } catch (error) {
-            console.error("Register error:", error);     
-            this.handleError(res, error);
-        }
-    }
-
-    login = async (req: Request, res: Response) => {
-        try {
-            if (!req.body || Object.keys(req.body).length === 0) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Request body is required" 
-                });
-            }
-
-             // Check for required fields before transformation
-            const requiredFields = ['role', 'walletAddress', 'signature', 'message'];
-            const missingFields = requiredFields.filter(field => !req.body[field]);
-            
-            if (missingFields.length > 0) {
-                return res.status(400).json({
-                    success: false, 
-                    message: `Missing required fields: ${missingFields.join(', ')}` 
-                });
-            }
-            
-            const loginData = plainToInstance(JWTDTO, req.body, {
-                enableImplicitConversion: true
-            });
-
-            const errors = await validate(loginData);
-            if (errors.length > 0) {
-                console.log("Validation errors:", errors);
-                const formatted = formatValidationErrors(errors);
-                return res.status(422).json(formatted);
-            }
-            const user = await this.authService.login(loginData);
-            res.status(200).json({success: true, message: "User logged in successfully", user});
-            
-        } catch (error) {
-            console.error("Login error:", error);
+            console.error('Auth sync error:', error);
             this.handleError(res, error);
         }
     }
@@ -166,7 +58,7 @@ export class AuthController {
     private handleError(res: Response, error: unknown): void {
         if (error instanceof Error) {
             console.error("Handled Error:", error.message, error.stack);
-            
+
             res.status(400).json({ message: error.message });
         } else if (typeof error === 'string') {
             console.error("String Error:", error);

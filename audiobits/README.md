@@ -12,6 +12,11 @@ On-chain artist and song registry, written in Solidity and built with Hardhat.
   song's artist via `setSplit`). If no split is set, 100% goes to the song's
   registered artist. Funds accumulate as a pull-based balance withdrawn via
   `withdraw()`.
+- `contracts/Pool.sol` holds a community-funded ERC-20 pool — anyone can
+  `deposit()` any amount, and the designated `payoutAuthority` address can
+  `payout()` the current balance to a set of winner addresses in one call.
+  "Rounds" (who won, when to pay out) are tracked off-chain by the backend;
+  this contract is just the deposit/payout mechanism.
 
 ## Usage
 

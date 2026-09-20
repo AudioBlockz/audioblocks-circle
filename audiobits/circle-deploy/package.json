@@ -7,6 +7,7 @@
     "deploy-registry": "tsx --env-file=.env deploy-registry.ts",
     "deploy-payment-token": "tsx --env-file=.env deploy-payment-token.ts",
     "deploy-royalty": "tsx --env-file=.env deploy-royalty.ts",
+    "deploy-pool": "tsx --env-file=.env deploy-pool.ts",
     "check-transaction": "tsx --env-file=.env check-transaction.ts",
     "get-contract": "tsx --env-file=.env get-contract.ts"
   },
@@ -16,7 +17,7 @@
   "description": "",
   "type": "module",
   "dependencies": {
-    "@circle-fin/developer-controlled-wallets": "^10.6.0",
+    "@circle-fin/developer-controlled-wallets": "^10.8.0",
     "@circle-fin/smart-contract-platform": "^10.6.0"
   },
   "devDependencies": {

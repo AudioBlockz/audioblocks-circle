@@ -5,7 +5,7 @@ const protectedRoutes = ['/dashboard'];
 export default function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  const token = req.cookies.get('audioblocks_jwt');
+  const token = req.cookies.get('audioblocks_session');
 
   if (!token && protectedRoutes.some((route) => pathname.startsWith(route))) {
     return NextResponse.redirect(new URL('/', req.url));

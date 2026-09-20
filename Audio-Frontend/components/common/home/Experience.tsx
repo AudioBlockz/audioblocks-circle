@@ -1,32 +1,28 @@
 'use client';
 
 import { ArrowRight } from 'lucide-react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAccount } from 'wagmi';
-import Cookies from 'js-cookie';
+import { usePrivy } from '@privy-io/react-auth';
 import { Auth } from '@/hooks/useAuth';
-import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
 
 const Experience = () => {
-  const { setShowAuthFlow } = useDynamicContext();
+  const { authenticated } = usePrivy();
   const route = useRouter();
-  const { isConnected } = useAccount();
-  const token = Cookies.get('audioblocks_jwt');
-  const { setShouldTriggerSignature } = Auth();
-
-  const handleAuthentication = async () => {
-    setShouldTriggerSignature(true);
-  };
+  const { login, loginAsArtist } = Auth();
 
   const handleStream = () => {
-    if (!isConnected) {
-      setShouldTriggerSignature(true);
-      setShowAuthFlow(true);
-    } else if (!token) {
-      setShouldTriggerSignature(true);
+    if (!authenticated) {
+      login();
     } else {
-      route.push('/dashboard/profile/edit');
+      route.push('/dashboard');
+    }
+  };
+
+  const handleJoinAsArtist = () => {
+    if (!authenticated) {
+      loginAsArtist();
+    } else {
+      route.push('/artist-hub');
     }
   };
 
@@ -52,15 +48,15 @@ const Experience = () => {
             <ArrowRight className="h-4 w-4 rotate-[300deg] text-white" />
           </div>
         </button>
-        <Link
-          href="#"
+        <button
+          onClick={handleJoinAsArtist}
           className="border flex items-center hover:bg-[#885FA8] hover:text-black justify-between border-[#F2AFC9] text-white font-medium px-5 py-2 rounded-full text-sm transition"
         >
-          Join Waitlist
+          Join as Artist
           <div className="bg-[#D2045B] rounded-full p-1 ml-2">
             <ArrowRight className="h-4 w-4 rotate-[300deg] text-white" />
           </div>
-        </Link>
+        </button>
       </div>
     </section>
   );

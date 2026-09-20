@@ -5,6 +5,7 @@ import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
 import Provider from '@/context/provider';
 import { Toaster } from 'sonner';
+import Player from '@/components/common/Player';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -33,7 +34,12 @@ export default function RootLayout({
       >
         <Provider>
           <Toaster position="bottom-right" closeButton />
-          {children} 
+          {children}
+          {/* Mounted once here (not per-layout) so the <audio> element, and
+              the persistent control bar it renders, survive navigation
+              between the dashboard and every other route instead of being
+              torn down and rebuilt. */}
+          <Player />
         </Provider>
       </body>
     </html>

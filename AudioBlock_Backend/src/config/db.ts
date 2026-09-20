@@ -6,6 +6,19 @@ import { Song } from "../entities/Song";
 import { TransactionLog } from "../entities/TransactionLog";
 import { Genre } from "../entities/Genre";
 import { Album } from "../entities/Album";
+import { StreamEvent } from "../entities/StreamEvent";
+import { PoolRound } from "../entities/PoolRound";
+import { PoolDeposit } from "../entities/PoolDeposit";
+import { Vote } from "../entities/Vote";
+import { PoolRoundResult } from "../entities/PoolRoundResult";
+import { Collection } from "../entities/Collection";
+import { CollectionMember } from "../entities/CollectionMember";
+import { FiatDeposit } from "../entities/FiatDeposit";
+import { SongLike } from "../entities/SongLike";
+import { SongComment } from "../entities/SongComment";
+import { Room } from "../entities/Room";
+import { RoomTicket } from "../entities/RoomTicket";
+import { Review } from "../entities/Review";
 
 
 
@@ -27,7 +40,20 @@ const AppDataSource = new DataSource({
     Song,
     TransactionLog,
     Genre,
-    Album
+    Album,
+    StreamEvent,
+    PoolRound,
+    PoolDeposit,
+    Vote,
+    PoolRoundResult,
+    Collection,
+    CollectionMember,
+    FiatDeposit,
+    SongLike,
+    SongComment,
+    Room,
+    RoomTicket,
+    Review
   ],
   migrations: ["src/migrations/*.ts"],
   migrationsTableName: "migrations",

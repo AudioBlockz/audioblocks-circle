@@ -4,34 +4,33 @@ import { useEffect, useState } from 'react';
 import { ArrowRight, Menu, X } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Variants, motion, AnimatePresence } from 'framer-motion';
-import { DynamicUserProfile, useDynamicContext } from '@dynamic-labs/sdk-react-core';
 import { Auth } from '@/hooks/useAuth';
 import FullScreenLoader from '@/components/common/home/FullScreenLoader';
+import { truncateAddress } from '@/lib/utils';
 
 const navLinks = [
   { name: 'Home', href: '/' },
   { name: 'Artist Hub', href: '/artist-hub' },
-  { name: 'Marketplace', href: '/marketPlace' },
+  { name: 'Rooms', href: '/marketPlace' },
   { name: 'Collective', href: '/collective' },
 ];
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
+  const route = useRouter();
   const [scrolled, setScrolled] = useState(false);
-  const {setShouldTriggerSignature, loading} = Auth();
-
-  const { setShowAuthFlow } = useDynamicContext();
-  const { setShowDynamicUserProfile, user } = useDynamicContext();
+  const { login, loading, user, profile } = Auth();
 
   const handleAuthentication = async () => {
-    setShouldTriggerSignature(true);
-    setShowAuthFlow(true);
+    login();
   };
 
-  
+  const goToProfile = () => route.push('/dashboard/profile');
+
+
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 20);
@@ -91,7 +90,7 @@ const Navbar = () => {
             Artist Hub
           </Link>
           <Link href="/marketPlace" className={linkClass('/marketPlace')}>
-            Marketplace
+            Rooms
           </Link>
           <Link href="/collective" className={linkClass('/collective')}>
             Collective
@@ -100,7 +99,7 @@ const Navbar = () => {
 
         {/* Sign In */}
         <div className="hidden md:flex">
-          {!user?.userId ? (
+          {!user ? (
             <button
               onClick={handleAuthentication}
               className="px-4 cursor-pointer py-2 gap-3 rounded-full bg-[#D2045B] hover:bg-[#B8043F] flex justify-between items-center text-white font-bold transition-all duration-200 whitespace-nowrap text-sm hover:scale-105 shadow-lg hover:shadow-xl"
@@ -113,13 +112,11 @@ const Navbar = () => {
           ) : (
             <button
               className="px-4 cursor-pointer py-2 gap-3 rounded-4xl bg-[#D2045B] hover:bg-[#B8043F] flex justify-between items-center text-white font-bold transition-all duration-200 whitespace-nowrap text-sm hover:scale-105 shadow-lg hover:shadow-xl"
-              onClick={() => setShowDynamicUserProfile(true)}
+              onClick={goToProfile}
             >
-              {user?.email} 
+              {profile?.email ?? (profile?.walletAddress && truncateAddress(profile.walletAddress))}
             </button>
           )}
-
-          <DynamicUserProfile />
         </div>
 
         {/* Mobile Menu Button */}
@@ -168,7 +165,7 @@ const Navbar = () => {
               ))}
 
               <motion.div variants={itemVariants}>
-                {!user?.userId ? (
+                {!user ? (
                   <button
                     onClick={handleAuthentication}
                     className="mt-6 w-full px-4 py-2 rounded-full bg-[#D2045B] hover:bg-[#B8043F] text-white font-medium text-sm flex justify-center items-center gap-2"
@@ -181,9 +178,9 @@ const Navbar = () => {
                 ) : (
                   <button
                     className="mt-6 w-full px-4 py-2 rounded-full bg-[#D2045B] hover:bg-[#B8043F] text-white font-medium text-sm flex justify-center items-center gap-2"
-                    onClick={() => setShowDynamicUserProfile(true)}
+                    onClick={goToProfile}
                   >
-                    {user?.email}
+                    {profile?.email ?? (profile?.walletAddress && truncateAddress(profile.walletAddress))}
                   </button>
                 )}
               </motion.div>

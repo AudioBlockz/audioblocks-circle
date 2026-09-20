@@ -1,30 +1,59 @@
 'use client';
 
-import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
+import { usePrivy } from '@privy-io/react-auth';
 import { ArrowRight } from 'lucide-react';
 import Image from 'next/image';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAccount } from 'wagmi';
-import Cookies from 'js-cookie';
+import { useEffect, useState } from 'react';
 import { Auth } from '@/hooks/useAuth';
 import FullScreenLoader from './FullScreenLoader';
 
+const ROTATING_WORDS = [
+  'Talent',
+  'Artists',
+  'Sounds',
+  'People',
+  'Voices',
+  'Creator',
+  'Melody',
+  'Sonics',
+  'Groove',
+];
+
+// Reserves layout space so "Today" never shifts as words rotate through.
+// NOT picked by character count — "Creator" and "Artists" are both 7
+// letters, but "Creator" renders visibly wider in this italic font and
+// crowded "Today" when the sizer was sized off "Artists" instead. Verified
+// directly by rendering each candidate rather than trusting .length.
+const LONGEST_WORD = 'Creator';
+
 const Hero = () => {
-  const { setShowAuthFlow } = useDynamicContext();
+  const { authenticated } = usePrivy();
   const route = useRouter();
-  const { isConnected } = useAccount();
-  const token = Cookies.get('audioblocks_jwt');
-  const { setShouldTriggerSignature, loading } = Auth();
+  const { login, loginAsArtist, loading } = Auth();
+
+  const [wordIndex, setWordIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setWordIndex((prev) => (prev + 1) % ROTATING_WORDS.length);
+    }, 2200);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleStream = () => {
-    if (!isConnected) {
-      setShowAuthFlow(true);
-      setShouldTriggerSignature(true);
-    } else if (!token) {
-      setShouldTriggerSignature(true);
+    if (!authenticated) {
+      login();
     } else {
-      route.push('/dashboard/profile/edit');
+      route.push('/dashboard');
+    }
+  };
+
+  const handleJoinAsArtist = () => {
+    if (!authenticated) {
+      loginAsArtist();
+    } else {
+      route.push('/artist-hub');
     }
   };
   return (
@@ -33,7 +62,19 @@ const Hero = () => {
       <div className="w-4/5 mx-auto flex flex-col-reverse md:flex-row items-center justify-between">
         <div className="">
           <h1 className="text-3xl md:text-4xl font-extrabold leading-tight mb-6">
-            Discover Tomorrow’s <br className="hidden md:block" /> Music Today
+            Discover Tomorrow’s <br className="hidden md:block" />{' '}
+            <span className="relative inline-block align-top capitalize italic pr-4 [perspective:400px]">
+              {/* Invisible sizer: reserves the width of the longest word (plus
+                  the pr-4 gap above) so "Today" never shifts as shorter or
+                  longer words rotate through, and never crowds it either. */}
+              <span className="invisible" aria-hidden="true">
+                {LONGEST_WORD}
+              </span>
+              <span key={wordIndex} className="hero-flip-word absolute inset-0 left-0 text-gray-600">
+                {ROTATING_WORDS[wordIndex]}
+              </span>
+            </span>
+            Today
           </h1>
           <p className="text-[#DACFD3] font-normal text-base md:text-lg leading-[1.6] mb-8">
             Stream authentic, ad-free music from emerging voices. <br className="hidden md:block" />
@@ -49,15 +90,15 @@ const Hero = () => {
                 <ArrowRight className="h-4 w-4 rotate-[300deg] text-white" />
               </div>
             </button>
-            <Link
-              href="#"
+            <button
+              onClick={handleJoinAsArtist}
               className="border flex items-center justify-between border-[#F2AFC9] text-white font-medium px-6 py-2 rounded-full text-sm hover:bg-[#885FA8] hover:text-black transition"
             >
-              Join Waitlist
+              Join as Artist
               <div className="bg-[#D2045B] rounded-full p-1 ml-2">
                 <ArrowRight className="h-4 w-4 rotate-[300deg] text-white" />
               </div>
-            </Link>
+            </button>
           </div>
         </div>
 
@@ -93,6 +134,28 @@ const Hero = () => {
       </div>
 
       {loading && <FullScreenLoader />}
+
+      <style jsx>{`
+        @keyframes heroFlipWord {
+          0% {
+            transform: rotateX(90deg);
+            opacity: 0;
+          }
+          60% {
+            transform: rotateX(0deg);
+            opacity: 1;
+          }
+          100% {
+            transform: rotateX(0deg);
+            opacity: 1;
+          }
+        }
+        .hero-flip-word {
+          animation: heroFlipWord 450ms ease-out;
+          transform-origin: 50% 50%;
+          backface-visibility: hidden;
+        }
+      `}</style>
     </section>
 
 

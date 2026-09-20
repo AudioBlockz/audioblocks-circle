@@ -39,6 +39,18 @@ export function handleError(res: Response, error: unknown): void {
     }
 }
 
+// Mirrors the fallback chain UserMenu.tsx uses client-side for the logged-in
+// user's own greeting (profile.username || profile.name || email prefix) —
+// most accounts never set a username/name (nothing in the sign-up flow asks
+// for one), so without this every such user showed up elsewhere as
+// "Unknown" instead of the same name the app already shows them as.
+export function getDisplayName(
+  user: { username?: string; name?: string; email?: string } | null | undefined
+): string {
+  if (!user) return "Unknown";
+  return user.username || user.name || user.email?.split("@")[0] || "Unknown";
+}
+
 export function base64URLEncode(str: Buffer) {
   return str.toString("base64")
     .replace(/\+/g, "-")

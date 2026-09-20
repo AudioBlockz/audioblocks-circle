@@ -1,13 +1,18 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { s3 } from "../config/s3";
 
-const s3 = new S3Client({ region: process.env.AWS_REGION });
+const SIGNED_URL_EXPIRES = Number(process.env.SIGNED_URL_EXPIRES || 300);
 
-export async function uploadBufferToS3(buffer: Buffer, key: string, contentType = "application/octet-stream") {
-  await s3.send(new PutObjectCommand({
-    Bucket: process.env.AWS_BUCKET_NAME,
+// Every image path stored in the DB is a plain S3 object URL, but the bucket
+// blocks public access, so the browser can't load it directly (403) — sign
+// it into a short-lived URL first. Shared by anything that serves S3-backed
+// image fields (song covers, artist profile/cover images) to the client.
+export function signS3Url(path?: string | null): string | undefined {
+  if (!path) return undefined;
+  const key = path.split(".com/")[1];
+  if (!key) return path;
+  return s3.getSignedUrl("getObject", {
+    Bucket: process.env.AWS_BUCKET_NAME!,
     Key: key,
-    Body: buffer,
-    ContentType: contentType
-  }));
-  return `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+    Expires: SIGNED_URL_EXPIRES,
+  });
 }
