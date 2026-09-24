@@ -20,7 +20,7 @@ const client = initiateSmartContractPlatformClient({
 
 const response = await client.deployContract({
   name: "RoyaltyPayout",
-  description: "Splits royalty payments for registered songs among payees",
+  // description omitted — see deploy-registry.ts for why.
   blockchain: getBlockchain(),
   walletId: process.env.WALLET_ID!,
   abiJson: JSON.stringify(artifact.abi),

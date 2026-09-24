@@ -20,7 +20,7 @@ const client = initiateSmartContractPlatformClient({
 
 const response = await client.deployContract({
   name: "Pool",
-  description: "Community funded pool with deposits and admin triggered payout to top voted artists",
+  // description omitted — see deploy-registry.ts for why.
   blockchain: getBlockchain(),
   walletId: process.env.WALLET_ID!,
   abiJson: JSON.stringify(artifact.abi),

@@ -17,7 +17,10 @@ const client = initiateSmartContractPlatformClient({
 
 const response = await client.deployContract({
   name: "AudioBitsRegistry",
-  description: "On-chain artist and song registry",
+  // description omitted — Circle mainnet rejects non-alphanumeric
+  // descriptions (400 "'description' field must be alphanumeric"), so a
+  // human-readable one isn't usable here; the name alone is enough to
+  // identify this contract in the Console.
   blockchain: getBlockchain(),
   walletId: process.env.WALLET_ID!,
   abiJson: JSON.stringify(artifact.abi),
