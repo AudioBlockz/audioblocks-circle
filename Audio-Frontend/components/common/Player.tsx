@@ -175,9 +175,16 @@ export default function Player() {
           const accessToken = authenticated ? await getAccessToken().catch(() => null) : null;
           if (cancelled) return;
 
+          const apiOrigin = process.env.NEXT_PUBLIC_API_URL;
           const hls = new Hls({
-            xhrSetup: (xhr) => {
-              if (accessToken) xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+            xhrSetup: (xhr, url) => {
+              // Only our own manifest endpoint understands (or wants) this
+              // header — segment fetches go straight to S3 with a presigned
+              // URL, and S3 rejects a request that carries both presigned
+              // query-string auth and an Authorization header with a 400.
+              if (accessToken && apiOrigin && url.startsWith(apiOrigin)) {
+                xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+              }
             },
           });
           hls.on(Hls.Events.ERROR, (_event, data) => {
