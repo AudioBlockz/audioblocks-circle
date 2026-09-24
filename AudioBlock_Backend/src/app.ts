@@ -40,9 +40,14 @@ app.use(morgan("dev"));
 const isLocalhostOrigin = (origin: string) =>
   /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 
-const productionAllowedOrigins: string[] = [
-  // Add the deployed frontend's origin(s) here before going to production.
-];
+// FRONTEND_URL already exists for building redirect links (see
+// FiatDepositService/RoomTicketService) — reused here too, comma-separated,
+// so pointing this at a new domain (or adding a preview deploy) is just an
+// env var change, not a code edit + redeploy.
+const productionAllowedOrigins: string[] = (process.env.FRONTEND_URL || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 app.use(
   cors({

@@ -1,7 +1,13 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  // This app lives in a subdirectory of a larger monorepo, which also has
+  // its own root package-lock.json — without this, Next.js infers the repo
+  // root as the file-tracing root and pulls the whole monorepo into
+  // serverless/edge function bundles (and warns about it on every build).
+  outputFileTracingRoot: path.join(__dirname),
   images: {
     // Song covers live in our S3 bucket. The backend constructs URLs in two
     // different forms (with and without the region in the hostname — see
