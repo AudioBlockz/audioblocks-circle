@@ -13,7 +13,7 @@ export class UserController {
 
     getUserByWalletAddress =async (req: Request, res: Response): Promise<void> => {
         try {
-            const walletAddress: string = req.params.walletAddress;
+            const walletAddress = req.params.walletAddress as string;
             const user: User | null = await this.userService.getUserByWalletAddress(walletAddress);
             res.status(200).json(user);
         } catch (error) {
@@ -24,7 +24,7 @@ export class UserController {
 
     getUserById =async (req: Request, res: Response): Promise<void> => {
         try {
-            const id: string = req.params.id;
+            const id = req.params.id as string;
             const user: User | null = await this.userService.getUserById(id);
             res.status(200).json(user);
         } catch (error) {
@@ -45,7 +45,7 @@ export class UserController {
 
     updateUser =async (req: Request, res: Response): Promise<void> => {
         try {
-            const id: string = req.params.id;
+            const id = req.params.id as string;
             const updateData: UpdateUserDTO = req.body;
             const user: User | null = await this.userService.updateUser(id, updateData);
             res.status(200).json(user);
@@ -57,7 +57,7 @@ export class UserController {
 
     deleteUser = async (req: Request, res: Response): Promise<void> => {
         try {
-            const id: string = req.params.id;
+            const id = req.params.id as string;
             const user: User | null = await this.userService.deleteUser(id);
             res.status(200).json(user);
         } catch (error) {
