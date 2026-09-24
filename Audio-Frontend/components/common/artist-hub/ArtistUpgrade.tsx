@@ -8,14 +8,18 @@ import { Auth } from '@/hooks/useAuth';
 const ArtistUpgrade = () => {
   const { authenticated } = usePrivy();
   const route = useRouter();
-  const { loginAsArtist } = Auth();
+  const { loginAsArtist, becomeArtist } = Auth();
 
-  const handleJoinAsArtist = () => {
+  const handleJoinAsArtist = async () => {
     if (!authenticated) {
       loginAsArtist();
-    } else {
-      route.push('/artist-hub');
+      return;
     }
+    // Already logged in (e.g. as a listener) — loginAsArtist() only carries
+    // role through Privy's login modal, which never opens for an existing
+    // session, so upgrade the existing account directly instead.
+    const isArtist = await becomeArtist();
+    if (isArtist) route.push('/artist-hub');
   };
 
   return (

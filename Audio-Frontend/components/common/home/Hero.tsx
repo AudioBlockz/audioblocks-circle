@@ -30,7 +30,7 @@ const LONGEST_WORD = 'Creator';
 const Hero = () => {
   const { authenticated } = usePrivy();
   const route = useRouter();
-  const { login, loginAsArtist, loading } = Auth();
+  const { login, loginAsArtist, becomeArtist, loading } = Auth();
 
   const [wordIndex, setWordIndex] = useState(0);
 
@@ -49,12 +49,13 @@ const Hero = () => {
     }
   };
 
-  const handleJoinAsArtist = () => {
+  const handleJoinAsArtist = async () => {
     if (!authenticated) {
       loginAsArtist();
-    } else {
-      route.push('/artist-hub');
+      return;
     }
+    const isArtist = await becomeArtist();
+    if (isArtist) route.push('/artist-hub');
   };
   return (
     <section className="relative h-screen text-white py-35 overflow-hidden">

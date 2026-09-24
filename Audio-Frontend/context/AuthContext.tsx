@@ -36,6 +36,12 @@ interface AuthContextValue {
   setProfile: (profile: BackendUser) => void;
   login: () => void;
   loginAsArtist: () => void;
+  // For a session that's already authenticated — loginAsArtist() only
+  // carries role through Privy's login modal, so an already-logged-in
+  // listener needs this instead to actually upgrade. Resolves true once
+  // profile.role is "artist" (including if it already was), false if the
+  // upgrade call itself failed.
+  becomeArtist: () => Promise<boolean>;
   handleLogOut: () => Promise<void>;
   loading: boolean;
 }
@@ -62,11 +68,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const syncedUserId = useRef<string | null>(null);
 
   // Set by loginAsArtist() right before opening Privy's login modal, and
-  // read once the resulting session actually syncs. The backend only
-  // applies this to a brand-new user — an existing account's role can't be
-  // changed this way (AuthService.sync ignores `role` once a user row
-  // already exists), which matches the intent here: every brand-new signup
-  // defaults to listener unless the artist entry point was used instead.
+  // read once the resulting session actually syncs — every brand-new
+  // signup defaults to listener unless the artist entry point was used
+  // instead. For an *existing* session, use becomeArtist() below instead:
+  // AuthService.sync only applies `role` on first-ever signup through this
+  // effect, but does separately allow an existing LISTENER to upgrade to
+  // ARTIST when `role: "artist"` is passed — becomeArtist() calls /sync
+  // directly with that, bypassing this pendingRole/login-modal path
+  // entirely since there's no need to re-authenticate.
   const pendingRole = useRef<"artist" | null>(null);
 
   useEffect(() => {
@@ -126,6 +135,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login();
   };
 
+  const becomeArtist = async (): Promise<boolean> => {
+    if (profile?.role === "artist") return true;
+
+    const url = process.env.NEXT_PUBLIC_API_URL;
+    try {
+      const accessToken = await getAccessToken();
+      const response = await axios.post(
+        `${url}/api/auth/sync`,
+        { role: "artist" },
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      const updated: BackendUser | null = response.data?.user ?? null;
+      setProfile(updated as BackendUser);
+      return updated?.role === "artist";
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Could not switch to an artist account");
+      return false;
+    }
+  };
+
   const handleLogOut = async () => {
     Cookies.remove("audioblocks_session");
     syncedUserId.current = null;
@@ -135,7 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, profile, setProfile, login, loginAsArtist, handleLogOut, loading }}
+      value={{ user, profile, setProfile, login, loginAsArtist, becomeArtist, handleLogOut, loading }}
     >
       {children}
     </AuthContext.Provider>

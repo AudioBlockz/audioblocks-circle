@@ -48,6 +48,17 @@ export class AuthService {
 
     const existing = await this.userRepo.findOneBy({ privyUserId });
     if (existing) {
+      // Self-serve listener -> artist upgrade ("Join as Artist" while
+      // already logged in). One-directional and narrow on purpose: this is
+      // the only place an existing user's role can change, and it only
+      // ever moves a LISTENER to ARTIST — an existing artist/admin role is
+      // left untouched even if `role` is passed, and AuthController already
+      // restricts `role` to SELF_SERVE_ROLES before it gets here, so this
+      // can never be used to reach ADMIN.
+      if (role === UserRole.ARTIST && existing.role === UserRole.LISTENER) {
+        existing.role = UserRole.ARTIST;
+        await this.userRepo.save(existing);
+      }
       return { user: existing, isNewUser: false };
     }
 

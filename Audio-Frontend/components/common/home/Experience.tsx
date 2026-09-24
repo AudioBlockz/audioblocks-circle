@@ -8,7 +8,7 @@ import { Auth } from '@/hooks/useAuth';
 const Experience = () => {
   const { authenticated } = usePrivy();
   const route = useRouter();
-  const { login, loginAsArtist } = Auth();
+  const { login, loginAsArtist, becomeArtist } = Auth();
 
   const handleStream = () => {
     if (!authenticated) {
@@ -18,12 +18,13 @@ const Experience = () => {
     }
   };
 
-  const handleJoinAsArtist = () => {
+  const handleJoinAsArtist = async () => {
     if (!authenticated) {
       loginAsArtist();
-    } else {
-      route.push('/artist-hub');
+      return;
     }
+    const isArtist = await becomeArtist();
+    if (isArtist) route.push('/artist-hub');
   };
 
   return (
