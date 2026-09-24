@@ -17,8 +17,6 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.916.0",
     "@circle-fin/developer-controlled-wallets": "^10.8.1",
-    "@dynamic-labs-wallet/core": "^0.0.187",
-    "@dynamic-labs-wallet/node-evm": "^0.0.187",
     "@mastra/core": "^1.66.0",
     "@privy-io/server-auth": "^1.18.0",
     "amqplib": "^0.10.9",
