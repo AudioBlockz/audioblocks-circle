@@ -29,8 +29,17 @@ export class UserService {
 
         if (dto.role === "artist") {
             const artistName = dto.username || dto.name || `Artist ${dto.walletAddress.slice(0, 8)}`;
-            onChainAccount = await this.artistService.setupArtistAccountOnChain(dto.walletAddress, artistName);
-            console.log("On-chain account setup initiated:", onChainAccount);
+            // Best-effort — a brand-new wallet has no USDC (Arc's gas token)
+            // yet, so this can fail purely on insufficient gas. That's a
+            // funding/ops problem, not a reason to reject the signup itself;
+            // the on-chain account can be set up later (e.g. a retry once
+            // the wallet's funded) without the user needing to sign up again.
+            try {
+                onChainAccount = await this.artistService.setupArtistAccountOnChain(dto.walletAddress, artistName);
+                console.log("On-chain account setup initiated:", onChainAccount);
+            } catch (err) {
+                console.error(`On-chain account setup failed for ${dto.walletAddress}, continuing signup without it:`, err);
+            }
         }
 
         const user = this.userRepo.create(dto);
