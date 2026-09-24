@@ -15,6 +15,28 @@ import { keccak256 } from "viem";
 
 const songRepo = AppDataSource.getRepository(Song);
 
+// Adaptive-bitrate quality ladder — each song gets transcoded to every
+// rendition here, so hls.js can switch down automatically on a slow
+// connection instead of stalling (see the "sensitive to network quality"
+// bug report this replaced: a single fixed 192k stream needed ~24 KB/s
+// sustained just to keep up in real time, with zero room for a slower link).
+const RENDITIONS: { name: string; bitrate: string; bandwidth: number }[] = [
+  { name: "64k", bitrate: "64k", bandwidth: 64_000 },
+  { name: "128k", bitrate: "128k", bandwidth: 128_000 },
+  { name: "192k", bitrate: "192k", bandwidth: 192_000 },
+];
+
+// Recursively lists every file under `dir`, returning paths relative to
+// `dir` itself (e.g. "128k/playlist.m3u8") — needed now that hlsDir has one
+// subdirectory per rendition instead of being flat.
+function listFilesRecursive(dir: string, relativeTo: string = dir): string[] {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) return listFilesRecursive(fullPath, relativeTo);
+    return [path.relative(relativeTo, fullPath)];
+  });
+}
+
 export async function startSongWorker() {
   try {
     const channel = getChannel();
@@ -50,39 +72,62 @@ export async function startSongWorker() {
 
       if (!fs.existsSync(hlsDir)) fs.mkdirSync(hlsDir, { recursive: true });
 
-      // Transcode to HLS
-      await new Promise((resolve, reject) => {
-        ffmpeg(localFile)
-          .outputOptions([
-            // Stream-copy only works when the source audio codec is
-            // already TS-compatible (e.g. MP3) — it silently breaks for
-            // anything else (WAV/PCM, FLAC, etc.), producing HLS segments
-            // with no playable audio track at all. Re-encoding to AAC
-            // handles any input format correctly.
-            "-vn",
-            "-c:a aac",
-            "-b:a 192k",
-            "-start_number 0",
-            "-hls_time 10",
-            "-hls_list_size 0",
-            "-f hls",
-          ])
-          .output(path.join(hlsDir, "master.m3u8"))
-          .on("end", resolve)
-          .on("error", reject)
-          .run();
-      });
+      // Transcode to HLS — one rendition per quality level, each its own
+      // subdirectory (e.g. hlsDir/128k/playlist.m3u8 + segments), run in
+      // parallel since they're independent encodes of the same source file.
+      await Promise.all(
+        RENDITIONS.map(({ name, bitrate }) => {
+          const renditionDir = path.join(hlsDir, name);
+          fs.mkdirSync(renditionDir, { recursive: true });
+          return new Promise<void>((resolve, reject) => {
+            ffmpeg(localFile)
+              .outputOptions([
+                // Stream-copy only works when the source audio codec is
+                // already TS-compatible (e.g. MP3) — it silently breaks for
+                // anything else (WAV/PCM, FLAC, etc.), producing HLS segments
+                // with no playable audio track at all. Re-encoding to AAC
+                // handles any input format correctly.
+                "-vn",
+                "-c:a aac",
+                `-b:a ${bitrate}`,
+                "-start_number 0",
+                "-hls_time 10",
+                "-hls_list_size 0",
+                "-f hls",
+              ])
+              .output(path.join(renditionDir, "playlist.m3u8"))
+              .on("end", () => resolve())
+              .on("error", reject)
+              .run();
+          });
+        })
+      );
 
-      // Upload HLS to S3
+      // A master (ABR) playlist just lists each rendition's own playlist
+      // with its bandwidth — hls.js reads this to choose and switch quality
+      // levels on its own. precomputeManifest.ts's rewriteManifest is what
+      // turns each "<rendition>/playlist.m3u8" line into a real URL when a
+      // client actually fetches this.
+      const masterPlaylist = [
+        "#EXTM3U",
+        "#EXT-X-VERSION:3",
+        ...RENDITIONS.flatMap(({ name, bandwidth }) => [
+          `#EXT-X-STREAM-INF:BANDWIDTH=${bandwidth},CODECS="mp4a.40.2"`,
+          `${name}/playlist.m3u8`,
+        ]),
+      ].join("\n") + "\n";
+      fs.writeFileSync(path.join(hlsDir, "master.m3u8"), masterPlaylist);
+
+      // Upload every file under hlsDir (master.m3u8 plus each rendition's
+      // own playlist + segments) to S3, preserving the same relative layout.
       console.log(`[${songId}] Transcode done, uploading HLS to S3...`);
-      const hlsFiles = fs.readdirSync(hlsDir);
-      // const s3BasePath = `songs/${fileId}/hls/`;
       const s3BasePath = `songs/${songId}/hls/`;
+      const hlsFiles = listFilesRecursive(hlsDir);
 
       for (let i = 0; i < hlsFiles.length; i++) {
-        const f = hlsFiles[i];
-        const filePath = path.join(hlsDir, f);
-        console.log(`[${songId}] Uploading HLS file ${i + 1}/${hlsFiles.length}: ${f}`);
+        const relativePath = hlsFiles[i];
+        const filePath = path.join(hlsDir, relativePath);
+        console.log(`[${songId}] Uploading HLS file ${i + 1}/${hlsFiles.length}: ${relativePath}`);
         // A raw file stream can't be rewound if the SDK retries the
         // request (e.g. the clock-skew correction on config/s3.ts causes
         // exactly one such retry on the first call) — a retried request
@@ -92,7 +137,7 @@ export async function startSongWorker() {
         await s3
           .upload({
             Bucket: process.env.AWS_BUCKET_NAME!,
-            Key: `${s3BasePath}${f}`,
+            Key: `${s3BasePath}${relativePath}`,
             Body: fs.readFileSync(filePath),
           })
           .promise();

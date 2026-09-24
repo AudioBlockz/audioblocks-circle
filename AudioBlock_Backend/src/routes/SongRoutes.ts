@@ -47,6 +47,8 @@ router.post("/upload/finalize", authArtistMiddleware, validateDTO(FinalizeUpload
 router.get("/", optionalAuthMiddleware, SongController.listSongs);
 router.get("/stats/mine", authArtistMiddleware, SongController.getMyStats);
 router.get("/stream/:id", optionalAuthMiddleware, SongController.streamSong);
+// One quality rendition of an adaptive-bitrate song — see SongController.streamVariant.
+router.get("/stream/:id/:rendition", optionalAuthMiddleware, SongController.streamVariant);
 
 // Likes + comments
 router.post("/:id/like", authMiddleware, SongInteractionController.toggleLike);

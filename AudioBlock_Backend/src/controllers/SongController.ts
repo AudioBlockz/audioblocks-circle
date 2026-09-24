@@ -5,7 +5,7 @@ import { Song } from "../entities/Song";
 import { StreamEvent } from "../entities/StreamEvent";
 import { SongLike } from "../entities/SongLike";
 import redis from "../config/redis";
-import { precomputeSignedManifest } from "../workers/precomputeManifest";
+import { precomputeSignedManifest, precomputeSignedVariantManifest } from "../workers/precomputeManifest";
 import { handleError, getDisplayName } from "../utils/helpers";
 import { signS3Url } from "../utils/s3";
 import { getClientIp, lookupCountryCode, countryCodeToName } from "../utils/geo";
@@ -16,6 +16,42 @@ const moodMatchService = new MoodMatchService();
 const roomTicketService = new RoomTicketService();
 
 const RANGE_DAYS: Record<string, number> = { "7d": 7, "28d": 28, "12m": 365 };
+
+// A rendition name is used to build an S3 key (see precomputeSignedVariantManifest)
+// — restrict it to exactly what SongProcessorWorker's RENDITIONS ever produces,
+// so it can never be used to reach an arbitrary S3 path.
+const RENDITION_NAME_RE = /^[a-zA-Z0-9_-]+$/;
+
+// Shared by streamSong and streamVariant — both need to resolve the song and
+// confirm the caller may stream it before serving any playlist level.
+// Writes the error response itself and returns null when access is refused,
+// so callers can just `if (!song) return;`.
+async function resolveStreamableSong(
+  req: Request,
+  res: Response,
+  songId: string
+): Promise<Song | null> {
+  const songRepo = AppDataSource.getRepository(Song);
+  const song = await songRepo.findOne({ where: { id: songId } });
+  if (!song || song.status !== "ready" || !song.hlsMasterUrl) {
+    res.status(404).json({ error: "Song not ready" });
+    return null;
+  }
+
+  // Unreleased tracks (see Song.unreleased) are only streamable by someone
+  // with a succeeded RoomTicket for the room they belong to, within that
+  // room's access window — see RoomTicketService.hasActiveAccess.
+  if (song.unreleased) {
+    const userId = (req as any).user?.id as string | undefined;
+    const hasAccess = userId ? await roomTicketService.hasActiveAccess(userId, songId) : false;
+    if (!hasAccess) {
+      res.status(403).json({ error: "Forbidden", message: "Buy a ticket to this room to listen" });
+      return null;
+    }
+  }
+
+  return song;
+}
 
 export class SongController {
 
@@ -104,30 +140,16 @@ export class SongController {
   static streamSong = async (req: Request, res: Response) => {
     const songId = req.params.id as string;
     try {
-      const songRepo = AppDataSource.getRepository(Song);
-      const song = await songRepo.findOne({ where: { id: songId } });
-      if (!song || song.status !== "ready" || !song.hlsMasterUrl) {
-        return res.status(404).json({ error: "Song not ready" });
-      }
-
-      // Unreleased tracks (see Song.unreleased) are only streamable by
-      // someone with a succeeded RoomTicket for the room they belong to,
-      // within that room's access window — see RoomTicketService.hasActiveAccess.
-      if (song.unreleased) {
-        const userId = (req as any).user?.id as string | undefined;
-        const hasAccess = userId ? await roomTicketService.hasActiveAccess(userId, songId) : false;
-        if (!hasAccess) {
-          return res.status(403).json({ error: "Forbidden", message: "Buy a ticket to this room to listen" });
-        }
-      }
+      const song = await resolveStreamableSong(req, res, songId);
+      if (!song) return;
 
       // Counts once per manifest request — a reasonable "play" proxy until
       // real listen-time tracking exists. Fire-and-forget: a lost count on
       // a rare DB hiccup shouldn't break playback. The IP is used only to
       // derive a country and is never itself persisted.
-      songRepo.increment({ id: songId }, "plays", 1).catch((err) =>
-        console.error("Failed to increment play count:", err)
-      );
+      AppDataSource.getRepository(Song)
+        .increment({ id: songId }, "plays", 1)
+        .catch((err) => console.error("Failed to increment play count:", err));
       const country = lookupCountryCode(getClientIp(req));
       AppDataSource.getRepository(StreamEvent)
         .insert({ songId, artistId: song.artistId, country })
@@ -140,13 +162,51 @@ export class SongController {
         return res.send(cached);
       }
 
-      // fallback: generate on the fly (fast rewrite)
+      // fallback: generate on the fly (fast rewrite) — this also covers
+      // the legacy single-rendition case: precomputeSignedManifest's
+      // rewrite treats a flat (non-ABR) master.m3u8 as a media playlist
+      // and signs its segments directly, same as before ABR existed.
       const generated = await precomputeSignedManifest(songId);
       res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
       res.setHeader("Access-Control-Allow-Origin", "*");
       return res.send(generated);
     } catch (err) {
       console.error("Stream error:", err);
+      handleError(res, err);
+    }
+  };
+
+  // One rendition of an adaptive-bitrate (ABR) song — see
+  // SongProcessorWorker's RENDITIONS. The master playlist streamSong
+  // serves points here (via precomputeManifest's rewriteManifest) for each
+  // quality level instead of linking straight to S3, since a variant's own
+  // segment lines still need to be signed the same way the master's are.
+  // No play-count/stream-event bump here — streamSong already counts the
+  // listen once when the master playlist is first fetched; counting again
+  // per rendition (or per ABR switch) would inflate it.
+  static streamVariant = async (req: Request, res: Response) => {
+    const songId = req.params.id as string;
+    const rendition = req.params.rendition as string;
+    if (!RENDITION_NAME_RE.test(rendition)) {
+      return res.status(400).json({ error: "Bad Request", message: "Invalid rendition" });
+    }
+    try {
+      const song = await resolveStreamableSong(req, res, songId);
+      if (!song) return;
+
+      const cacheKey = `manifest:${songId}:${rendition}`;
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
+        return res.send(cached);
+      }
+
+      const generated = await precomputeSignedVariantManifest(songId, rendition);
+      res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      return res.send(generated);
+    } catch (err) {
+      console.error("Stream variant error:", err);
       handleError(res, err);
     }
   };
