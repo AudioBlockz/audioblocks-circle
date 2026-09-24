@@ -8,9 +8,13 @@ import { sendCircleContractTransaction } from "../../utils/circleWallet";
 const TOKEN_DECIMALS = 6;
 
 // A brand-new Circle wallet has zero USDC, so it can't pay for its own
-// first transaction (registerArtist below) without this — comfortably
-// covers gas with margin; tune via env if actual costs differ.
-const ARTIST_SETUP_GAS_STIPEND = process.env.ARTIST_SETUP_GAS_STIPEND || "0.5";
+// first transaction (registerArtist below) without this. A real
+// registerArtist call on testnet cost ~0.0096 USDC (384,835 gas @ 25
+// gwei) — 0.2 leaves ~20x headroom on that call alone, plus enough left
+// over afterward for several more similarly-sized calls (e.g. the
+// post-upload song-registration transaction). Tune via env if actual
+// costs differ once measured on mainnet.
+const ARTIST_SETUP_GAS_STIPEND = process.env.ARTIST_SETUP_GAS_STIPEND || "0.2";
 
 export class ArtistService {
   async setupArtistAccountOnChain(walletAddress: string, artistName: string): Promise<`0x${string}`> {
