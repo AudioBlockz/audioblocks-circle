@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { initiateSmartContractPlatformClient } from "@circle-fin/smart-contract-platform";
+import { getBlockchain } from "./network";
 
 const artifact = JSON.parse(
   fs.readFileSync(path.resolve("../artifacts/contracts/mocks/MockERC20.sol/MockERC20.json"), "utf-8")
@@ -14,7 +15,7 @@ const client = initiateSmartContractPlatformClient({
 const response = await client.deployContract({
   name: "AudioBitsMockUSD",
   description: "Mintable test ERC-20 used as the royalty payment token on testnet",
-  blockchain: "ARC-TESTNET",
+  blockchain: getBlockchain(),
   walletId: process.env.WALLET_ID!,
   abiJson: JSON.stringify(artifact.abi),
   bytecode: artifact.bytecode,

@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { initiateSmartContractPlatformClient } from "@circle-fin/smart-contract-platform";
+import { getBlockchain } from "./network";
 
 const artifact = JSON.parse(
   fs.readFileSync(path.resolve("../artifacts/contracts/Pool.sol/Pool.json"), "utf-8")
@@ -20,7 +21,7 @@ const client = initiateSmartContractPlatformClient({
 const response = await client.deployContract({
   name: "Pool",
   description: "Community funded pool with deposits and admin triggered payout to top voted artists",
-  blockchain: "ARC-TESTNET",
+  blockchain: getBlockchain(),
   walletId: process.env.WALLET_ID!,
   abiJson: JSON.stringify(artifact.abi),
   bytecode: artifact.bytecode,
