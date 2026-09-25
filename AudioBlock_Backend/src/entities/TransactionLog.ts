@@ -20,8 +20,12 @@ export class TransactionLog {
 
   // Nullable for system-triggered actions with no human actor to attribute
   // them to (e.g. PoolService.autoCloseDueRounds) — every other write here
-  // still carries a real user id.
-  @Column({ nullable: true })
+  // still carries a real user id. type: "varchar" is explicit because
+  // reflect-metadata can't reduce a `string | null` union to a single
+  // constructor — without it TypeORM sees the column type as "Object" and
+  // Postgres rejects it outright (matches this column's original inferred
+  // type, back when it was a plain non-nullable `string`).
+  @Column({ type: "varchar", nullable: true })
   user_id?: string | null;
 
   @Column()

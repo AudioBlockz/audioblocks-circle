@@ -18,7 +18,10 @@ export class PoolDeposit {
   // gated on round state), it just isn't attributed to a specific round's
   // bookkeeping total until one closes and pays out. See
   // PoolService.executeDeposit.
-  @Column({ nullable: true })
+  // type: "varchar" is explicit because reflect-metadata can't reduce a
+  // `string | null` union to a single constructor — without it TypeORM
+  // sees the column type as "Object" and Postgres rejects it outright.
+  @Column({ type: "varchar", nullable: true })
   roundId?: string | null;
 
   // Base units (18 decimals), string to avoid float precision loss.

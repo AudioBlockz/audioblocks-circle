@@ -35,8 +35,10 @@ export class FiatDeposit {
 
   // Null when checkout was started while no round was open — see
   // PoolDeposit.roundId for why that's fine; the money still lands in the
-  // Pool contract on success regardless of round state.
-  @Column({ nullable: true })
+  // Pool contract on success regardless of round state. type: "varchar" is
+  // explicit for the same reason as PoolDeposit.roundId — a `string | null`
+  // union reflects as "Object", which Postgres rejects.
+  @Column({ type: "varchar", nullable: true })
   roundId?: string | null;
 
   @Column({ type: "enum", enum: FiatDepositProvider })
