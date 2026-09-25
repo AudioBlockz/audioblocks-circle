@@ -62,44 +62,53 @@ export class AuthService {
       return { user: existing, isNewUser: false };
     }
 
-    const privyUser = await privy.getUser(privyUserId);
-    // Login/session verification stays on Privy (unaffected by the Arc
-    // Testnet signing block — that's a separate Privy product surface).
-    // The wallet itself, though, is now a Circle developer-controlled
-    // wallet rather than Privy's embedded wallet: Privy's app is blocked
-    // from signing ANY transaction on Arc Testnet ("App is not authorized
-    // to transact on chain eip155:5042002", unresolved), so a
-    // Privy-managed wallet address would be unusable for on-chain calls.
-    // See the "Migrate Off Privy" plan, Phase A.
-    const wallet = await createCircleArcWallet(process.env.CIRCLE_WALLET_SET_ID!);
-    const walletAddress = wallet.address;
-    const email = privyUser.email?.address ?? privyUser.google?.email;
-
-    const dto = Object.assign(new CreateUserDTO(), {
-      privyUserId,
-      walletAddress,
-      email,
-      role: role ?? UserRole.LISTENER,
-      username,
-    });
-
+    // Two concurrent /sync calls for a brand-new user (independent tabs, a
+    // retried request, or any future re-introduction of the double-mount
+    // race the AuthProvider comment above describes) would otherwise each
+    // create their own Circle wallet and each fund it from the same
+    // treasury wallet at once — a nonce race where one transfer can fail,
+    // and whichever call happens to win the DB insert below keeps whichever
+    // wallet it created, funded or not. An advisory lock keyed on
+    // privyUserId serializes first-time signups for the same identity so
+    // only one of them ever reaches the wallet-creation/on-chain-setup work
+    // below; the loser just waits for the lock and then finds the row
+    // already there.
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
     try {
+      await queryRunner.query("SELECT pg_advisory_lock(hashtext($1))", [privyUserId]);
+
+      const racedExisting = await this.userRepo.findOneBy({ privyUserId });
+      if (racedExisting) {
+        return { user: racedExisting, isNewUser: false };
+      }
+
+      const privyUser = await privy.getUser(privyUserId);
+      // Login/session verification stays on Privy (unaffected by the Arc
+      // Testnet signing block — that's a separate Privy product surface).
+      // The wallet itself, though, is now a Circle developer-controlled
+      // wallet rather than Privy's embedded wallet: Privy's app is blocked
+      // from signing ANY transaction on Arc Testnet ("App is not authorized
+      // to transact on chain eip155:5042002", unresolved), so a
+      // Privy-managed wallet address would be unusable for on-chain calls.
+      // See the "Migrate Off Privy" plan, Phase A.
+      const wallet = await createCircleArcWallet(process.env.CIRCLE_WALLET_SET_ID!);
+      const walletAddress = wallet.address;
+      const email = privyUser.email?.address ?? privyUser.google?.email;
+
+      const dto = Object.assign(new CreateUserDTO(), {
+        privyUserId,
+        walletAddress,
+        email,
+        role: role ?? UserRole.LISTENER,
+        username,
+      });
+
       const user = await this.userService.createUser(dto);
       return { user, isNewUser: true };
-    } catch (error: any) {
-      // Two concurrent /sync calls for a brand-new user (e.g. the same login
-      // triggering this from more than one mounted component) can both pass
-      // the `existing` check above before either commits. Postgres' unique
-      // constraint on privyUserId is what actually prevents the duplicate —
-      // the loser of that race should just return the winner's row instead
-      // of surfacing a raw insert failure.
-      if (error?.code === "23505" || error?.driverError?.code === "23505") {
-        const user = await this.userRepo.findOneBy({ privyUserId });
-        if (user) {
-          return { user, isNewUser: false };
-        }
-      }
-      throw error;
+    } finally {
+      await queryRunner.query("SELECT pg_advisory_unlock(hashtext($1))", [privyUserId]);
+      await queryRunner.release();
     }
   }
 }

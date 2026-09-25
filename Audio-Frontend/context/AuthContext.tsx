@@ -82,6 +82,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const syncWithBackend = async () => {
       if (!ready || !authenticated || !user || syncedUserId.current === user.id) return;
 
+      // Set before the first `await` below, not after the call resolves —
+      // ready/authenticated can settle across more than one render before
+      // user.id does, re-firing this effect for the same user while the
+      // first call is still in flight. Marking it synchronously closes that
+      // gap; on failure it's reset in the catch so a real retry isn't
+      // permanently blocked.
+      syncedUserId.current = user.id;
+
       const url = process.env.NEXT_PUBLIC_API_URL;
       const role = pendingRole.current;
 
@@ -107,7 +115,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Only used by middleware.ts to gate routes client-side; every
         // authenticated request re-fetches a fresh token via getAccessToken().
         Cookies.set("audioblocks_session", accessToken ?? "");
-        syncedUserId.current = user.id;
         setProfile(response.data?.user ?? null);
         toast.success(response.data?.message);
 
@@ -120,6 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (error: any) {
         toast.error(error?.response?.data?.message || "Sign-in failed");
+        syncedUserId.current = null;
         await logout();
       } finally {
         pendingRole.current = null;
