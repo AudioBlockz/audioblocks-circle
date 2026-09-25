@@ -25,6 +25,6 @@ export class UpdateArtistProfileDTO {
 
   @IsOptional()
   @IsString()
-  website?: string;
+  instagram?: string;
 
 }

@@ -70,8 +70,10 @@ export class User {
   @Column({ nullable: true })
   pageCover?: string;
 
+  // Just the handle (no @, no URL) — the public profile links to
+  // instagram.com/<handle>.
   @Column({ nullable: true })
-  website?: string;
+  instagram?: string;
 
   @Column({ nullable: true })
   twitterId?: string;

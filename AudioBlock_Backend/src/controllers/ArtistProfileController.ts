@@ -41,7 +41,7 @@ export class ArtistProfileController {
           bio: artist.bio,
           profileImage: signS3Url(artist.profileImage),
           pageCover: signS3Url(artist.pageCover),
-          website: artist.website,
+          instagram: artist.instagram,
           walletAddress: artist.walletAddress,
         },
       });

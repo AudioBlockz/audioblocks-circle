@@ -43,6 +43,18 @@ export class ArtistProfileService {
     const { profileImage, pageCover, ...rest } = profileData;
     const updateData: Partial<User> = { ...rest };
 
+    // Accept a bare handle, "@handle", or a full profile URL and normalize
+    // to just the handle — instagram.com/<handle> is built from this on
+    // display (see ArtistProfileController), so a stray "@" or pasted URL
+    // would otherwise break that link.
+    if (typeof updateData.instagram === "string") {
+      updateData.instagram = updateData.instagram
+        .trim()
+        .replace(/^https?:\/\/(www\.)?instagram\.com\//i, "")
+        .replace(/^@/, "")
+        .replace(/\/+$/, "") || undefined;
+    }
+
     // upload profile image if provided
     if (
       profileData.profileImage &&

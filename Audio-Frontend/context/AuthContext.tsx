@@ -22,7 +22,7 @@ export interface BackendUser {
   profileImage?: string;
   pageCover?: string;
   bio?: string;
-  website?: string;
+  instagram?: string;
   rewardPoints: number;
   totalStreams: number;
   totalStreamTime: number;

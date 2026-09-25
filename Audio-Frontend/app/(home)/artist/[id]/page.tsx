@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import axios from 'axios';
-import { Play, Pause, Globe, Heart } from 'lucide-react';
+import { Play, Pause, Instagram, Heart } from 'lucide-react';
 import { usePlayerContext } from '@/context/PlayerContext';
 
 interface ArtistProfile {
@@ -14,7 +14,7 @@ interface ArtistProfile {
   bio: string | null;
   profileImage: string | null;
   pageCover: string | null;
-  website: string | null;
+  instagram: string | null;
   walletAddress: string;
 }
 
@@ -134,15 +134,15 @@ export default function ArtistPage() {
           <p className="text-[#D4D4D4] text-sm mt-6 max-w-2xl whitespace-pre-line">{artist.bio}</p>
         )}
 
-        {artist.website && (
+        {artist.instagram && (
           <a
-            href={artist.website}
+            href={`https://instagram.com/${artist.instagram}`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 text-xs text-[#A3A3A3] hover:text-white mt-3"
           >
-            <Globe size={14} />
-            {artist.website}
+            <Instagram size={14} />
+            @{artist.instagram}
           </a>
         )}
 

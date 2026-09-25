@@ -11,7 +11,7 @@ import { Auth } from '@/hooks/useAuth';
 const EditProfile = () => {
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
-  const [website, setWebsite] = useState('');
+  const [instagram, setInstagram] = useState('');
   const [twitter, setTwitter] = useState('');
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
@@ -32,7 +32,7 @@ const EditProfile = () => {
     if (!profile) return;
     setDisplayName(profile.username || profile.name || '');
     setBio(profile.bio || '');
-    setWebsite(profile.website || '');
+    setInstagram(profile.instagram || '');
     setCoverPreview(profile.pageCover || null);
     setAvatarPreview(profile.profileImage || null);
   }, [profile?.id]);
@@ -86,7 +86,7 @@ const EditProfile = () => {
       const formData = new FormData();
       if (displayName) formData.append('username', displayName);
       if (bio) formData.append('bio', bio);
-      if (website) formData.append('website', website);
+      if (instagram) formData.append('instagram', instagram);
       if (coverFile) formData.append('pageCover', coverFile);
       if (avatarFile) formData.append('profileImage', avatarFile);
 
@@ -144,13 +144,13 @@ const EditProfile = () => {
           </div>
 
           <div>
-            <label className="block mb-2 text-base font-medium">Website URL</label>
+            <label className="block mb-2 text-base font-medium">Instagram</label>
             <input
-              type="url"
-              placeholder="https://"
+              type="text"
+              placeholder="yourhandle"
               className="w-full bg-[#1A1A1A] text-white rounded-lg px-4 py-2 placeholder:text-sm placeholder:text-[#4B4B4B] focus:outline-none"
-              value={website}
-              onChange={(e) => setWebsite(e.target.value)}
+              value={instagram}
+              onChange={(e) => setInstagram(e.target.value)}
             />
           </div>
 
