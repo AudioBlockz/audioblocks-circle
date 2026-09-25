@@ -57,7 +57,10 @@ export class FiatDepositService {
       throw new Error("FiatDepositService: amount must be a positive number");
     }
 
-    const round = await this.poolService.getOrOpenCurrentRound();
+    const round = await this.poolService.getOpenRound();
+    if (!round) {
+      throw new Error("FiatDepositService: no round is currently open for deposits");
+    }
 
     const fiatDeposit = await this.fiatDepositRepo.save(
       this.fiatDepositRepo.create({
@@ -139,7 +142,10 @@ export class FiatDepositService {
     }
 
     const rate = getNgnUsdRate();
-    const round = await this.poolService.getOrOpenCurrentRound();
+    const round = await this.poolService.getOpenRound();
+    if (!round) {
+      throw new Error("FiatDepositService: no round is currently open for deposits");
+    }
 
     const fiatDeposit = await this.fiatDepositRepo.save(
       this.fiatDepositRepo.create({

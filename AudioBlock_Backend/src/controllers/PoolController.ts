@@ -93,6 +93,16 @@ export class PoolController {
     }
   };
 
+  adminCreateRound = async (req: Request, res: Response) => {
+    try {
+      const durationHours = req.body?.durationHours !== undefined ? Number(req.body.durationHours) : undefined;
+      const data = await this.poolService.createRound(durationHours);
+      return res.status(201).json({ success: true, data });
+    } catch (error) {
+      handleError(res, error);
+    }
+  };
+
   adminCloseRound = async (req: Request, res: Response) => {
     try {
       const admin = (req as any).user;

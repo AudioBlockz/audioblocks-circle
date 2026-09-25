@@ -18,11 +18,14 @@ interface AdminRound {
   closedAt: string | null;
 }
 
-// Minimal admin surface for the pool voting rounds — list every round with
-// its vote/deposit counts, and let an admin close the open one early. Most
-// rounds close on their own once closesAt passes (see the backend's
-// autoCloseDueRounds); this exists for closing one ahead of schedule or
-// for rounds opened before that feature existed (closesAt = null).
+// Minimal admin surface for the pool voting rounds. Rounds don't open
+// themselves — an admin explicitly opens the next one (choosing how long it
+// runs) once the previous one has closed, and can also close the open one
+// early if needed. A round left open past its chosen duration closes itself
+// automatically (see the backend's autoCloseDueRounds) and pays out —
+// "Close Round" here is just for closing one ahead of schedule.
+const DEFAULT_DURATION_HOURS = 24 * 7;
+
 const AdminRoundsPage = () => {
   const { getAccessToken } = usePrivy();
   const { profile, loading: authLoading } = Auth();
@@ -30,9 +33,12 @@ const AdminRoundsPage = () => {
   const [rounds, setRounds] = useState<AdminRound[]>([]);
   const [loadingRounds, setLoadingRounds] = useState(true);
   const [closingId, setClosingId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [durationHours, setDurationHours] = useState(String(DEFAULT_DURATION_HOURS));
 
   const url = process.env.NEXT_PUBLIC_API_URL;
   const isAdmin = profile?.role === 'admin';
+  const hasOpenRound = rounds.some((r) => r.status === 'open');
 
   const fetchRounds = async () => {
     setLoadingRounds(true);
@@ -54,6 +60,31 @@ const AdminRoundsPage = () => {
     if (isAdmin) fetchRounds();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
+
+  const handleCreateRound = async () => {
+    if (creating) return;
+    const hours = Number(durationHours);
+    if (!Number.isFinite(hours) || hours <= 0) {
+      toast.error('Enter a duration greater than zero');
+      return;
+    }
+
+    setCreating(true);
+    try {
+      const accessToken = await getAccessToken();
+      const res = await axios.post(
+        `${url}/api/pool/admin/rounds`,
+        { durationHours: hours },
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      toast.success(`Round #${res.data?.data?.roundNumber} opened for ${hours} hour(s)`);
+      fetchRounds();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to create round');
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const handleCloseRound = async (roundId: string, roundNumber: number) => {
     if (closingId) return;
@@ -106,9 +137,37 @@ const AdminRoundsPage = () => {
       </div>
 
       <p className="text-white text-sm mb-6">
-        Rounds close automatically once their deadline passes. Use this to close the current round
-        early if needed — it pays out the top 5 songs on-chain immediately and cannot be undone.
+        Rounds don&apos;t open on their own — start the next one below, and it&apos;ll close and pay
+        out automatically once its duration passes, or you can close it early anytime.
       </p>
+
+      <div className="flex flex-wrap items-end gap-4 bg-[#1A1A1A] rounded-xl px-6 py-4 mb-6">
+        {hasOpenRound ? (
+          <p className="text-[#A3A3A3] text-sm">
+            A round is already open — close it before starting a new one.
+          </p>
+        ) : (
+          <>
+            <div>
+              <label className="block text-[#A3A3A3] text-xs mb-1">Duration (hours)</label>
+              <input
+                type="number"
+                min={1}
+                value={durationHours}
+                onChange={(e) => setDurationHours(e.target.value)}
+                className="w-32 bg-[#242424] text-white rounded-lg px-3 py-2 text-sm focus:outline-none"
+              />
+            </div>
+            <button
+              onClick={handleCreateRound}
+              disabled={creating}
+              className="bg-[#D2045B] hover:bg-pink-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer"
+            >
+              {creating ? 'Opening…' : 'Create Round'}
+            </button>
+          </>
+        )}
+      </div>
 
       {loadingRounds ? (
         <div className="h-40 rounded-lg bg-[#1A1A1A] animate-pulse" />

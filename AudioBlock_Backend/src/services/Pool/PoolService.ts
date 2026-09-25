@@ -38,19 +38,34 @@ export class PoolService {
   private songRepo = AppDataSource.getRepository(Song);
   private transactionLogService = new TransactionLogService();
 
-  // Lazily opens round #1 (and every subsequent round) the first time it's
-  // needed — there's no separate "open round" admin action; closing a
-  // round is what causes the next one to open (see closeRound below).
-  async getOrOpenCurrentRound(): Promise<PoolRound> {
-    const existing = await this.roundRepo.findOne({ where: { status: PoolRoundStatus.OPEN } });
-    if (existing) return existing;
+  // The currently open round, if any — voting/deposits pause between a
+  // round closing and an admin explicitly opening the next one (see
+  // createRound below), so this can legitimately return null.
+  async getOpenRound(): Promise<PoolRound | null> {
+    return this.roundRepo.findOne({ where: { status: PoolRoundStatus.OPEN } });
+  }
+
+  // Admin-only: opens the next round. Rounds no longer open themselves —
+  // an admin decides when voting starts again after the previous one
+  // closes, and picks (or accepts the default) duration for how long it
+  // stays open before autoCloseDueRounds() closes and pays it out.
+  async createRound(durationHours?: number): Promise<PoolRound> {
+    const existing = await this.getOpenRound();
+    if (existing) {
+      throw new Error(`PoolService: round #${existing.roundNumber} is already open — close it before starting a new one`);
+    }
+
+    const hours = durationHours ?? POOL_ROUND_DURATION_HOURS;
+    if (!Number.isFinite(hours) || hours <= 0) {
+      throw new Error("PoolService: durationHours must be a positive number");
+    }
 
     const last = await this.roundRepo.findOne({ where: {}, order: { roundNumber: "DESC" } });
     const round = this.roundRepo.create({
       roundNumber: (last?.roundNumber ?? 0) + 1,
       status: PoolRoundStatus.OPEN,
       totalDeposited: "0",
-      closesAt: new Date(Date.now() + POOL_ROUND_DURATION_HOURS * 60 * 60 * 1000),
+      closesAt: new Date(Date.now() + hours * 60 * 60 * 1000),
     });
     return this.roundRepo.save(round);
   }
@@ -101,9 +116,9 @@ export class PoolService {
   // leaderboard can show where things stand before a round closes rather
   // than only ever showing past, already-closed rounds.
   async getCurrentStandings() {
-    const round = await this.getOrOpenCurrentRound();
+    const round = await this.getOpenRound();
     const songs = await this.songRepo.find({ where: { status: "ready", unreleased: false } });
-    const votes = await this.voteRepo.find({ where: { roundId: round.id } });
+    const votes = round ? await this.voteRepo.find({ where: { roundId: round.id } }) : [];
 
     const voteCountBySongId = new Map<string, number>();
     for (const v of votes) {
@@ -142,8 +157,13 @@ export class PoolService {
     });
   }
 
+  // Null means no round is currently open (between an admin closing one and
+  // opening the next) — the frontend shows a "no active round" state rather
+  // than treating this as an error.
   async getCurrentRoundStatus(userId?: string) {
-    const round = await this.getOrOpenCurrentRound();
+    const round = await this.getOpenRound();
+    if (!round) return null;
+
     const base = {
       roundId: round.id,
       roundNumber: round.roundNumber,
@@ -165,7 +185,10 @@ export class PoolService {
       throw new Error("PoolService: song not found or not yet released");
     }
 
-    const round = await this.getOrOpenCurrentRound();
+    const round = await this.getOpenRound();
+    if (!round) {
+      throw new Error("PoolService: no round is currently open for voting");
+    }
 
     const existing = await this.voteRepo.findOne({ where: { userId, roundId: round.id } });
     if (existing) {
@@ -185,7 +208,10 @@ export class PoolService {
   // wallet-write code; see the "Migrate Off Privy" plan's Phase B for why
   // that would need to change for a real user-controlled signing model).
   async deposit(user: User, amountHuman: string) {
-    const round = await this.getOrOpenCurrentRound();
+    const round = await this.getOpenRound();
+    if (!round) {
+      throw new Error("PoolService: no round is currently open for deposits");
+    }
     return this.executeDeposit(user.walletAddress, user.id, amountHuman, round.id, "POOL_DEPOSIT");
   }
 
@@ -359,8 +385,7 @@ export class PoolService {
       round.status = PoolRoundStatus.CLOSED;
       round.closedAt = new Date();
       await this.roundRepo.save(round);
-      const nextRound = await this.getOrOpenCurrentRound();
-      return { round: this.serializeRound(round), payoutTxHash: null, winners: [], nextRoundId: nextRound.id };
+      return { round: this.serializeRound(round), payoutTxHash: null, winners: [] };
     }
 
     const winningSongs = await this.songRepo.findBy({ id: In(standings.map((s) => s.songId)) });
@@ -478,13 +503,10 @@ export class PoolService {
       );
     }
 
-    const nextRound = await this.getOrOpenCurrentRound();
-
     return {
       round: this.serializeRound(round),
       payoutTxHash,
       winners: standings.map((s) => ({ songId: s.songId, votes: Number(s.votes) })),
-      nextRoundId: nextRound.id,
     };
   }
 

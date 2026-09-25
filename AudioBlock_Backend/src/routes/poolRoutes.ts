@@ -48,6 +48,7 @@ router.get("/deposit/fiat/:id/status", authListenerMiddleware, fiatDepositContro
 
 // Admin
 router.get("/admin/rounds", authAdminMiddleware, poolController.adminListRounds);
+router.post("/admin/rounds", authAdminMiddleware, poolController.adminCreateRound);
 router.post("/admin/rounds/:id/close", authAdminMiddleware, poolController.adminCloseRound);
 
 export default router;

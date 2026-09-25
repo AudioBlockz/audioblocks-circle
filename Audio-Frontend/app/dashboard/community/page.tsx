@@ -429,6 +429,12 @@ const CommunityTabs = () => {
             </div>
           )}
 
+          {!loadingVoteTab && !currentRound && (
+            <div className="bg-[#1A1A1A] rounded-xl px-6 py-4 mb-6 text-[#A3A3A3] text-sm">
+              No voting round is open right now — check back soon.
+            </div>
+          )}
+
           <div className="flex flex-col md:flex-row mb-6">
             <div className="flex items-center bg-transparent border rounded-full px-4 py-2 mr-6">
               <FiSearch className="text-gray-400 text-lg" />
@@ -484,8 +490,9 @@ const CommunityTabs = () => {
                       </div>
                       <button
                         onClick={() => handleVote(song.id)}
-                        disabled={votingSongId === song.id}
-                        className={`mt-auto w-full px-4 py-2 rounded-xl text-sm font-semibold shadow cursor-pointer disabled:opacity-50 ${
+                        disabled={votingSongId === song.id || !currentRound}
+                        title={!currentRound ? 'No voting round is open right now' : undefined}
+                        className={`mt-auto w-full px-4 py-2 rounded-xl text-sm font-semibold shadow cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                           isVotedFor
                             ? 'bg-[#242424] text-white border border-pink-600'
                             : 'bg-[#D2045B] hover:bg-pink-700 text-white'

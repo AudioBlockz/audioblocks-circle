@@ -40,9 +40,9 @@ export class PoolRound {
   @CreateDateColumn()
   openedAt!: Date;
 
-  // Set once at open time from POOL_ROUND_DURATION_HOURS (see PoolService),
-  // not recomputed later — changing that env var only affects rounds opened
-  // after the change. Null means no auto-close (e.g. rounds opened before
+  // Set once when an admin opens the round (PoolService.createRound), from
+  // whatever duration they chose or the POOL_ROUND_DURATION_HOURS default —
+  // not recomputed later. Null means no auto-close (rounds opened before
   // this feature existed) — PoolService.autoCloseDueRounds skips those.
   @Column({ nullable: true })
   closesAt?: Date;
