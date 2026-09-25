@@ -18,7 +18,15 @@ export const arc = defineChain({
 
 export const arcPublicClient = createPublicClient({
   chain: arc,
-  transport: http(),
+  // The default public rpc.mainnet.arc.io endpoint rate-limits (429 /
+  // "rate limit exceeded") under normal admin-action traffic — closing a
+  // pool round alone makes several calls here (a balance read, then
+  // waitForTransactionReceipt polling). viem's default retry (3 attempts,
+  // ~150ms base backoff) isn't enough headroom for a rate limit that takes
+  // longer than ~1s to clear; this gives it real room to recover before
+  // giving up. A dedicated RPC provider (see the ARC_RPC_URL comment
+  // above) would fix the underlying cause instead of just tolerating it.
+  transport: http(undefined, { retryCount: 5, retryDelay: 1000 }),
 });
 
 export const ARC_CAIP2 = `eip155:${arc.id}` as const;
