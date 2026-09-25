@@ -33,8 +33,11 @@ export class FiatDeposit {
   @Column()
   userId!: string;
 
-  @Column()
-  roundId!: string;
+  // Null when checkout was started while no round was open — see
+  // PoolDeposit.roundId for why that's fine; the money still lands in the
+  // Pool contract on success regardless of round state.
+  @Column({ nullable: true })
+  roundId?: string | null;
 
   @Column({ type: "enum", enum: FiatDepositProvider })
   provider!: FiatDepositProvider;

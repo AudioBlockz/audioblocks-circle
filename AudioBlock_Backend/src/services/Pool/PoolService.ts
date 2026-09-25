@@ -157,12 +157,28 @@ export class PoolService {
     });
   }
 
-  // Null means no round is currently open (between an admin closing one and
-  // opening the next) — the frontend shows a "no active round" state rather
-  // than treating this as an error.
+  // The Pool contract's real, current USDC balance — accurate regardless of
+  // round state, unlike PoolRound.totalDeposited (a per-round counter that
+  // a no-round-open deposit doesn't touch). Same read closeRound() itself
+  // uses for the actual payout math.
+  async getLivePoolBalance(): Promise<bigint> {
+    return (await arcPublicClient.readContract({
+      address: ArcContractAddress.PaymentToken,
+      abi: erc20Abi,
+      functionName: "balanceOf",
+      args: [ArcContractAddress.Pool],
+    })) as bigint;
+  }
+
+  // `round` is null whenever no round is currently open (between an admin
+  // closing one and opening the next) — the frontend shows a "no active
+  // round" state for voting when that happens, but `poolBalance` is always
+  // populated since deposits aren't gated on round state (see deposit()).
   async getCurrentRoundStatus(userId?: string) {
-    const round = await this.getOpenRound();
-    if (!round) return null;
+    const [round, poolBalance] = await Promise.all([this.getOpenRound(), this.getLivePoolBalance()]);
+    const formattedBalance = formatUnits(poolBalance, TOKEN_DECIMALS);
+
+    if (!round) return { round: null, poolBalance: formattedBalance };
 
     const base = {
       roundId: round.id,
@@ -173,10 +189,13 @@ export class PoolService {
       totalDeposited: formatUnits(BigInt(round.totalDeposited), TOKEN_DECIMALS),
     };
 
-    if (!userId) return base;
+    if (!userId) return { round: base, poolBalance: formattedBalance };
 
     const myVote = await this.voteRepo.findOne({ where: { userId, roundId: round.id } });
-    return { ...base, hasVoted: !!myVote, votedSongId: myVote?.songId ?? null };
+    return {
+      round: { ...base, hasVoted: !!myVote, votedSongId: myVote?.songId ?? null },
+      poolBalance: formattedBalance,
+    };
   }
 
   async castVote(userId: string, songId: string): Promise<void> {
@@ -207,12 +226,16 @@ export class PoolService {
   // instead of client-initiated (this codebase has no client-side
   // wallet-write code; see the "Migrate Off Privy" plan's Phase B for why
   // that would need to change for a real user-controlled signing model).
+  //
+  // Not gated on a round being open — the Pool contract itself has no
+  // notion of rounds, just a running balance (see PoolRound's own comment),
+  // and closeRound() already pays out from that real balance rather than
+  // a per-round counter. A deposit made between rounds isn't idle, it's
+  // just sitting in the contract already, uncredited to any one round
+  // until the next close — see executeDeposit below.
   async deposit(user: User, amountHuman: string) {
     const round = await this.getOpenRound();
-    if (!round) {
-      throw new Error("PoolService: no round is currently open for deposits");
-    }
-    return this.executeDeposit(user.walletAddress, user.id, amountHuman, round.id, "POOL_DEPOSIT");
+    return this.executeDeposit(user.walletAddress, user.id, amountHuman, round?.id ?? null, "POOL_DEPOSIT");
   }
 
   // Same on-chain approve+deposit, but signed by the platform's own
@@ -220,11 +243,11 @@ export class PoolService {
   // was actually paid in fiat (Stripe/Paystack), where there is no listener
   // wallet holding real USDC to sign from. Called only from a verified
   // payment-provider webhook (see FiatDepositService), never directly from
-  // a request a listener controls. `roundId` is the round that was open
-  // when the listener started checkout, not necessarily whatever is open
-  // now — a round closing mid-payment shouldn't silently redirect their
-  // money into the next one.
-  async depositFromTreasury(userId: string, amountHuman: string, roundId: string) {
+  // a request a listener controls. `roundId` is whatever round (if any) was
+  // open when the listener started checkout, not necessarily whatever is
+  // open now — a round closing mid-payment shouldn't silently redirect
+  // their money into the next one's bookkeeping.
+  async depositFromTreasury(userId: string, amountHuman: string, roundId: string | null) {
     const treasuryAddress = process.env.TREASURY_WALLET_ADDRESS;
     if (!treasuryAddress) {
       throw new Error("PoolService: TREASURY_WALLET_ADDRESS is not configured");
@@ -242,7 +265,7 @@ export class PoolService {
     signerWalletAddress: string,
     creditUserId: string,
     amountHuman: string,
-    roundId: string,
+    roundId: string | null,
     logAction: string
   ) {
     const amount = parseUnits(amountHuman, TOKEN_DECIMALS);
@@ -250,8 +273,11 @@ export class PoolService {
       throw new Error("PoolService: deposit amount must be greater than zero");
     }
 
-    const round = await this.roundRepo.findOne({ where: { id: roundId } });
-    if (!round) {
+    // Only look up (and bump the running total on) a round when this
+    // deposit is actually attributed to one — roundId is null whenever no
+    // round was open at deposit time, which is allowed by design.
+    const round = roundId ? await this.roundRepo.findOne({ where: { id: roundId } }) : null;
+    if (roundId && !round) {
       throw new Error("PoolService: round not found");
     }
 
@@ -273,24 +299,26 @@ export class PoolService {
 
     const deposit = this.depositRepo.create({
       userId: creditUserId,
-      roundId: round.id,
+      roundId: round?.id ?? null,
       amount: amount.toString(),
       approveTxHash,
       depositTxHash,
     });
     await this.depositRepo.save(deposit);
 
-    round.totalDeposited = (BigInt(round.totalDeposited) + amount).toString();
-    await this.roundRepo.save(round);
+    if (round) {
+      round.totalDeposited = (BigInt(round.totalDeposited) + amount).toString();
+      await this.roundRepo.save(round);
+    }
 
     await this.transactionLogService.createLogEntry(
       creditUserId,
       depositTxHash,
       logAction,
-      `Deposited ${amountHuman} into pool round #${round.roundNumber}`
+      round ? `Deposited ${amountHuman} into pool round #${round.roundNumber}` : `Deposited ${amountHuman} into the pool (no round open)`
     );
 
-    return { approveTxHash, depositTxHash, amount: amountHuman, roundId: round.id };
+    return { approveTxHash, depositTxHash, amount: amountHuman, roundId: round?.id ?? null };
   }
 
   async listClosedRounds(limit = 20) {
@@ -396,13 +424,9 @@ export class PoolService {
 
     // Source of truth for the payout amount is the contract's real
     // balance, not PoolRound.totalDeposited (a fast display approximation
-    // that can drift from failed txs or prior-round dust).
-    const poolBalance = (await arcPublicClient.readContract({
-      address: ArcContractAddress.PaymentToken,
-      abi: erc20Abi,
-      functionName: "balanceOf",
-      args: [ArcContractAddress.Pool],
-    })) as bigint;
+    // that can drift from failed txs, prior-round dust, or deposits made
+    // while no round was open).
+    const poolBalance = await this.getLivePoolBalance();
 
     const amountEach = poolBalance / BigInt(standings.length);
 

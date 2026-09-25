@@ -31,6 +31,11 @@ interface CurrentRound {
   votedSongId?: string | null;
 }
 
+interface CurrentRoundResponse {
+  round: CurrentRound | null;
+  poolBalance: string;
+}
+
 interface ClosedRound {
   id: string;
   roundNumber: number;
@@ -62,6 +67,9 @@ const CommunityTabs = () => {
 
   const [songs, setSongs] = useState<ApiSong[]>([]);
   const [currentRound, setCurrentRound] = useState<CurrentRound | null>(null);
+  // Always populated (reads the Pool contract's real balance) regardless of
+  // whether a round is open — deposits aren't gated on round state.
+  const [poolBalance, setPoolBalance] = useState<string | null>(null);
   const [loadingVoteTab, setLoadingVoteTab] = useState(true);
   const [votingSongId, setVotingSongId] = useState<string | null>(null);
   const [addressCopied, setAddressCopied] = useState(false);
@@ -90,14 +98,16 @@ const CommunityTabs = () => {
 
       const [songsRes, roundRes] = await Promise.all([
         axios.get(`${url}/api/pool/songs`),
-        axios.get(`${url}/api/pool/current`, { headers }),
+        axios.get<{ success: boolean; data: CurrentRoundResponse }>(`${url}/api/pool/current`, { headers }),
       ]);
 
       setSongs(songsRes.data?.data ?? []);
-      setCurrentRound(roundRes.data?.data ?? null);
+      setCurrentRound(roundRes.data?.data?.round ?? null);
+      setPoolBalance(roundRes.data?.data?.poolBalance ?? null);
     } catch {
       setSongs([]);
       setCurrentRound(null);
+      setPoolBalance(null);
     } finally {
       setLoadingVoteTab(false);
     }
@@ -365,16 +375,21 @@ const CommunityTabs = () => {
             its collaborators.
           </p>
 
-          {currentRound && (
+          {!loadingVoteTab && poolBalance !== null && (
             <div className="flex flex-wrap items-center gap-6 bg-[#1A1A1A] rounded-xl px-6 py-4 mb-6 text-white">
               <div>
                 <p className="text-[#A3A3A3] text-xs">Pool balance</p>
-                <p className="text-xl font-semibold">{currentRound.totalDeposited} USDC</p>
+                <p className="text-xl font-semibold">{poolBalance} USDC</p>
               </div>
               <div>
                 <p className="text-[#A3A3A3] text-xs">Round</p>
-                <p className="text-xl font-semibold">#{currentRound.roundNumber}</p>
+                <p className="text-xl font-semibold">
+                  {currentRound ? `#${currentRound.roundNumber}` : 'None open'}
+                </p>
               </div>
+              {/* Deposits work anytime, even with no round open — money
+                  already sitting in the pool just gets paid out whenever
+                  the next round closes. Only voting needs an open round. */}
               <div className="flex flex-wrap items-center gap-2 w-full md:w-auto md:ml-auto">
                 <input
                   type="text"

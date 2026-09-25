@@ -58,14 +58,11 @@ export class FiatDepositService {
     }
 
     const round = await this.poolService.getOpenRound();
-    if (!round) {
-      throw new Error("FiatDepositService: no round is currently open for deposits");
-    }
 
     const fiatDeposit = await this.fiatDepositRepo.save(
       this.fiatDepositRepo.create({
         userId,
-        roundId: round.id,
+        roundId: round?.id ?? null,
         provider: FiatDepositProvider.STRIPE,
         // set right after the session exists, see below — left unset
         // (NULL, not "") so a failed Stripe call never blocks a retry, see
@@ -143,14 +140,11 @@ export class FiatDepositService {
 
     const rate = getNgnUsdRate();
     const round = await this.poolService.getOpenRound();
-    if (!round) {
-      throw new Error("FiatDepositService: no round is currently open for deposits");
-    }
 
     const fiatDeposit = await this.fiatDepositRepo.save(
       this.fiatDepositRepo.create({
         userId,
-        roundId: round.id,
+        roundId: round?.id ?? null,
         provider: FiatDepositProvider.PAYSTACK,
         // set right after the transaction exists, see below — left unset
         // (NULL, not "") so a failed Paystack call never blocks a retry,
@@ -240,7 +234,7 @@ export class FiatDepositService {
       const result = await this.poolService.depositFromTreasury(
         fiatDeposit.userId,
         usdcAmountHuman,
-        fiatDeposit.roundId
+        fiatDeposit.roundId ?? null
       );
       fiatDeposit.status = FiatDepositStatus.SUCCEEDED;
       fiatDeposit.usdcAmount = usdcAmountHuman;
