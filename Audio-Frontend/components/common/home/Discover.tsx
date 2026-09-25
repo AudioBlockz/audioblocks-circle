@@ -15,15 +15,15 @@ type Track = {
   image: string;
 };
 
-const categories = ['Trending', 'Merches', 'Tickets', 'Recently Added'];
+const categories = ['Trending', 'Rooms', 'Recently Added'];
 
 const generateDummyTracks = (category: string) =>
   Array(6).fill(null).map((_, index) => ({
     id: `${category}-${index}`,
     title: `Echoes of the Soul ${index + 1}`,
     artist: 'Misty Brown',
-    left: `${10 + index}/1000 Left`,
-    price: `${(0.005 + index * 0.001).toFixed(3)}Ξ`,
+    left: `${20 + index * 4} votes this round`,
+    price: `${(0.005 + index * 0.001).toFixed(3)} USDC to unlock`,
     image: '/home/sound.jpg', // Replace with your own image
   }));
 
@@ -53,7 +53,7 @@ const Discover = () => {
       {/* Header */}
       <div className="flex justify-between items-center w-4/5 mx-auto">
         <h1 className="text-4xl font-semibold text-[#A3A3A3] font-poppins leading-tight tracking-tight">
-          Buy, Sell <span className="text-white">& Discover</span> Tracks
+          Vote, Unlock <span className="text-white">& Discover</span> Tracks
         </h1>
         <Link href='#' className="bg-[#1E181D] hover:bg-[#885FA8] text-[#F2AFC9] hover:text-[#1E181D] rounded-full p-5">
           <ArrowRight className="-rotate-45 w-6 h-6" />
@@ -112,7 +112,7 @@ const Discover = () => {
                   <p className="text-xs text-white/60 mb-4">{track.left}</p>
                   <div className="flex justify-between items-center">
                     <button className="bg-white text-black text-xs px-4 py-1 rounded font-semibold">
-                      Buy Now
+                      Unlock
                     </button>
                     <span className="text-xs">{track.price}</span>
                   </div>

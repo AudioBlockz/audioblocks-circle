@@ -36,7 +36,8 @@ const Experience = () => {
           with Audioblocks
         </h1>
         <p className="text-[#A3A3A3] max-w-lg m-auto text-sm font-medium">
-          No more passive listening, Stream and enjoy your music while earning on Audioblocks
+          Vote for your favorite songs each round, deposit into the community pool, and watch it
+          pay out on-chain to the artists you backed.
         </p>
       </div>
       <div className="flex flex-col justify-center mt-6 md:flex-row gap-4">

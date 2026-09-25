@@ -179,7 +179,7 @@ export default function NatureDepthSlider({
 
     //     <div className="flex justify-start">
     //       <button className=" h-[48px] pt-2 pr-2 pb-2 pl-4 gap-7 rounded-full bg-[#D2045B] hover:bg-[#B8043F] flex items-center text-white font-medium transition-all duration-200 whitespace-nowrap text-sm hover:scale-105 shadow-lg hover:shadow-xl">
-    //         Place Bid for 0.00034ETH
+    //         Place Bid for 0.00034 USDC
     //         <div className="bg-black rounded-full p-1">
     //           <ArrowRight className="h-4 w-4 rotate-[300deg] text-white" />
     //         </div>
@@ -391,7 +391,7 @@ export default function NatureDepthSlider({
 
       <div className="flex">
         <button className="h-[44px] sm:h-[48px] px-4 sm:px-6 rounded-full bg-[#D2045B] hover:bg-[#B8043F] flex items-center text-white font-medium text-xs sm:text-sm transition-all duration-200 whitespace-nowrap hover:scale-105 shadow-lg hover:shadow-xl">
-          Place Bid for 0.00034ETH
+          Place Bid for 0.00034 USDC
           <div className="bg-black rounded-full p-1 ml-3">
             <ArrowRight className="h-4 w-4 rotate-[300deg]" />
           </div>

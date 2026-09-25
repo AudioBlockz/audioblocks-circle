@@ -18,28 +18,28 @@ const musicData = [
     image: '/wif.jpg',
     artistName: 'Wiffi Drips',
     songName: 'Bigger',
-    price: '0.5 ETH',
+    price: '0.5 USDC',
   },
   {
     id: 'music-2',
     image: '/chilli.jpg',
     artistName: 'Mchivir',
     songName: 'ASILW',
-    price: '0.3 ETH',
+    price: '0.3 USDC',
   },
   {
     id: 'music-3',
     image: '/cat.png',
     artistName: 'Soldier Cat',
     songName: 'Bad Guy',
-    price: '0.7 ETH',
+    price: '0.7 USDC',
   },
   {
     id: 'music-4',
     image: '/moon.webp',
     artistName: 'Lost',
     songName: 'Circles',
-    price: '0.4 ETH',
+    price: '0.4 USDC',
   },
 ];
 
@@ -49,21 +49,21 @@ const eventData = [
     image: '/AFRO.jpg',
     artistName: 'Wiffi Drips Tour',
     eventName: 'World Tour',
-    price: '1.2 ETH',
+    price: '1.2 USDC',
   },
   {
     id: 'event-2',
     image: '/tech.jpg',
     artistName: 'Ara',
     eventName: 'Sweetener World Tour',
-    price: '0.9 ETH',
+    price: '0.9 USDC',
   },
   {
     id: 'event-3',
     image: '/rap.png',
     artistName: 'Rap Battle',
     eventName: 'Mat Tour',
-    price: '0.8 ETH',
+    price: '0.8 USDC',
   },
 ];
 
@@ -73,21 +73,21 @@ const merchData = [
     image: '/audio.jpg',
     artistName: 'AudioBlocks',
     itemName: 'T-Shirts',
-    price: '0.2 ETH',
+    price: '0.2 USDC',
   },
   {
     id: 'merch-2',
     image: '/ad.jpg',
     artistName: 'AudioBlocks',
     itemName: 'Folklore Vinyl',
-    price: '0.15 ETH',
+    price: '0.15 USDC',
   },
   {
     id: 'merch-3',
     image: '/ads.jpg',
     artistName: 'BTS',
     itemName: 'Official T-Shirt',
-    price: '0.1 ETH',
+    price: '0.1 USDC',
   },
 ];
 

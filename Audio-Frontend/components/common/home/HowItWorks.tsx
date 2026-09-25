@@ -12,12 +12,12 @@ const listenerFeatures = [
     description: 'Ad-free, high-quality music streaming designed for music lovers.',
   },
   {
-    title: 'Earn as You Listen',
-    description: 'Collect points and rewards by engaging with tracks.',
+    title: 'Vote Each Round',
+    description: 'Back your favorite songs — the top 5 by vote split a USDC pool when the round closes.',
   },
   {
-    title: 'Support Artists Directly',
-    description: 'Tip your favorite creators or buy digital merch to help them grow.',
+    title: 'Unlock Exclusive Rooms',
+    description: 'Pay to unlock early access to an artist’s unreleased tracks.',
   },
 ];
 
@@ -27,16 +27,16 @@ const artistFeatures = [
     description: 'Easily publish your tracks to reach a growing community of listeners.',
   },
   {
-    title: 'Earn with Every Stream',
-    description: 'Get paid fairly through streaming, tips, subscriptions, and fan support.',
+    title: 'Get Paid From the Pool',
+    description: 'Win votes each round and get paid automatically in USDC — split fairly across collaborators.',
   },
   {
-    title: 'Sell Digital Merch & NFTs',
-    description: 'Create your digital storefront to sell exclusive tracks, collectibles, and more.',
+    title: 'Open Exclusive Rooms',
+    description: 'Charge listeners to unlock unreleased tracks, paid in crypto, card, or Naira.',
   },
   {
-    title: 'Get Discovered & Funded',
-    description: 'Join to gain visibility to grow your reach.',
+    title: 'Collaborate & Split Fairly',
+    description: 'Team up with other artists on a track — payouts split automatically by your agreed share.',
   },
 ];
 
@@ -60,8 +60,8 @@ const HowItWorks = () => {
         <div className="border border-[#D2045B33] rounded-2xl p-6 relative">
           <h3 className="text-lg font-semibold mb-3 text-white">Listeners</h3>
           <p className="text-sm font-medium text-[#A3A3A3] mb-6">
-            Unlock a whole new way to enjoy music. From seamless listening to earning while you
-            stream
+            Unlock a whole new way to enjoy music — from seamless listening to voting artists into
+            a real payout.
           </p>
           <ul className="space-y-3">
             {listenerFeatures.map((feature, i) => (

@@ -13,20 +13,20 @@ const EventSection = () => {
       image: '/audio.jpg',
       date: '1:30 PM - 27/7/2025',
       going: 16,
-      price: '0.005ETH',
+      price: '0.005 USDC',
     },
     {
       name: 'Music Concert',
       date: '1:30 PM - 27/7/2025',
       going: 16,
-      price: '0.005ETH',
+      price: '0.005 USDC',
       image: '/home/frame1.jpg',
     },
     {
       name: 'Music Concert',
       date: '1:30 PM - 27/7/2025',
       going: 16,
-      price: '0.005ETH',
+      price: '0.005 USDC',
       image: '/AFRO.jpg',
     },
   ];

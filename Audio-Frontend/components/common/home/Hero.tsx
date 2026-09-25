@@ -78,8 +78,9 @@ const Hero = () => {
             Today
           </h1>
           <p className="text-[#DACFD3] font-normal text-base md:text-lg leading-[1.6] mb-8">
-            Stream authentic, ad-free music from emerging voices. <br className="hidden md:block" />
-            Built for listeners who care and artists who dare.
+            Ad-free streaming where listeners vote each round and fund a community pool —
+            <br className="hidden md:block" />
+            the artists with the most votes split it, paid out in USDC.
           </p>
           <div className="flex flex-col md:flex-row gap-4">
             <button

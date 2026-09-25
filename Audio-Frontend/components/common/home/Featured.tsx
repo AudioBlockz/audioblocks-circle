@@ -3,8 +3,8 @@ import Image from 'next/image';
 const features = [
   {
     image: '/home/Container2.png',
-    title: 'Stream and Earn',
-    description: 'Turn your playlists to earn rewards as you engage',
+    title: 'Vote & Payout Pool',
+    description: 'Vote each round and fund a USDC pool that pays the top artists directly',
     border: 'border-[#D2045B33]',
   },
   {
@@ -16,8 +16,8 @@ const features = [
   },
   {
     image: '/home/Container1.png',
-    title: 'NFT Music Marketplace',
-    description: 'Collect, support, and trade exclusive tracks directly from your favorite artists',
+    title: 'Exclusive Rooms',
+    description: 'Unlock unreleased tracks directly from your favorite artists, paid in crypto or cash',
     border: 'border-[#1D1D20]',
   },
 ];
