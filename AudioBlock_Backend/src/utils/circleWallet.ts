@@ -47,9 +47,20 @@ export async function sendCircleContractTransaction({
   }
 
   const confirmed = await client.getTransaction({ id: transactionId, waitForState: "CONFIRMED" });
-  const txHash = confirmed.data?.transaction?.txHash as `0x${string}` | undefined;
+  const tx = confirmed.data?.transaction;
+  const txHash = tx?.txHash as `0x${string}` | undefined;
   if (!txHash) {
-    throw new Error("Circle: confirmed transaction has no txHash");
+    // waitForState stops at CONFIRMED or any terminal state, so a missing
+    // txHash here almost always means it landed on FAILED instead — surface
+    // Circle's own reason (e.g. INSUFFICIENT_TOKEN / "ERC20: transfer amount
+    // exceeds balance") rather than this generic message, since that's what
+    // actually explains the failure to whoever's debugging it.
+    const reason = [tx?.errorReason, tx?.errorDetails].filter(Boolean).join(": ");
+    throw new Error(
+      reason
+        ? `Circle: transaction ${transactionId} failed (${tx?.state}) — ${reason}`
+        : `Circle: transaction ${transactionId} did not confirm (state: ${tx?.state ?? "unknown"})`
+    );
   }
 
   // Mirrors sendArcContractTransaction()'s behavior of only returning once

@@ -413,7 +413,7 @@ const CommunityTabs = () => {
 
               {profile?.walletAddress && (
                 <div className="w-full text-xs text-[#A3A3A3]">
-                  Deposits are paid from your app wallet, not a connected browser wallet — fund{' '}
+                  The Deposit button pays from your app wallet, not a connected browser wallet — fund{' '}
                   <button
                     type="button"
                     onClick={handleCopyAddress}
@@ -423,7 +423,7 @@ const CommunityTabs = () => {
                     {truncateAddress(profile.walletAddress)}
                     {addressCopied ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
                   </button>{' '}
-                  with testnet USDC before depositing.
+                  with USDC first, or use Pay with Card/Naira instead — those don&apos;t need your wallet funded.
                 </div>
               )}
             </div>
