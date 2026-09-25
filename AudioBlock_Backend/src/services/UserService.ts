@@ -1,6 +1,6 @@
 import { Repository } from "typeorm";
 import AppDataSource from "../config/db";
-import { User } from "../entities/User";
+import { User, UserRole } from "../entities/User";
 import { CreateUserDTO } from "../dtos/CreateUserDTO";
 import { TransactionLog } from "../entities/TransactionLog";
 import { ArtistService } from "./Artist/ArtistService";
@@ -54,6 +54,40 @@ export class UserService {
                 txHash: onChainAccount,
                 action: "CREATE_USER",
                 description: `User with wallet ${savedUser.walletAddress} created.`,
+            });
+            await this.transactionLogRepo.save(log);
+        }
+
+        return savedUser;
+    }
+
+    // Self-serve listener -> artist upgrade (AuthService.sync's `existing`
+    // branch). A brand-new artist signup gets its wallet funded and
+    // registered on-chain in createUser above; this upgrade path used to
+    // just flip the role column and stop there, leaving every promoted
+    // artist's wallet unfunded and unregistered on Arc. Mirrors createUser's
+    // best-effort handling: the role change itself never fails because of
+    // an on-chain hiccup.
+    async promoteToArtist(user: User): Promise<User> {
+        const artistName = user.username || user.name || `Artist ${user.walletAddress.slice(0, 8)}`;
+
+        let onChainAccount: string | undefined = undefined;
+        try {
+            onChainAccount = await this.artistService.setupArtistAccountOnChain(user.walletAddress, artistName);
+            console.log("On-chain account setup initiated:", onChainAccount);
+        } catch (err) {
+            console.error(`On-chain account setup failed for ${user.walletAddress}, continuing upgrade without it:`, err);
+        }
+
+        user.role = UserRole.ARTIST;
+        const savedUser = await this.userRepo.save(user);
+
+        if (onChainAccount) {
+            const log = this.transactionLogRepo.create({
+                user_id: savedUser.id,
+                txHash: onChainAccount,
+                action: "UPGRADE_TO_ARTIST",
+                description: `User with wallet ${savedUser.walletAddress} upgraded to artist.`,
             });
             await this.transactionLogRepo.save(log);
         }

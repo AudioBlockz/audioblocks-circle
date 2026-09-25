@@ -46,41 +46,46 @@ export class AuthService {
   ): Promise<{ user: User; isNewUser: boolean }> {
     const privyUserId = await this.verifyAccessToken(accessToken);
 
+    // Self-serve listener -> artist upgrade ("Join as Artist" while already
+    // logged in) is the only place an existing user's role can change, and
+    // it only ever moves a LISTENER to ARTIST — an existing artist/admin
+    // role is left untouched even if `role` is passed, and AuthController
+    // already restricts `role` to SELF_SERVE_ROLES before it gets here, so
+    // this can never be used to reach ADMIN.
+    const wantsPromotion = (u: User) => role === UserRole.ARTIST && u.role === UserRole.LISTENER;
+
     const existing = await this.userRepo.findOneBy({ privyUserId });
-    if (existing) {
-      // Self-serve listener -> artist upgrade ("Join as Artist" while
-      // already logged in). One-directional and narrow on purpose: this is
-      // the only place an existing user's role can change, and it only
-      // ever moves a LISTENER to ARTIST — an existing artist/admin role is
-      // left untouched even if `role` is passed, and AuthController already
-      // restricts `role` to SELF_SERVE_ROLES before it gets here, so this
-      // can never be used to reach ADMIN.
-      if (role === UserRole.ARTIST && existing.role === UserRole.LISTENER) {
-        existing.role = UserRole.ARTIST;
-        await this.userRepo.save(existing);
-      }
+    if (existing && !wantsPromotion(existing)) {
+      // Read-only path (an ordinary session resume) — skip the lock below
+      // entirely, since nothing here spends from the treasury wallet or
+      // creates a Circle wallet.
       return { user: existing, isNewUser: false };
     }
 
-    // Two concurrent /sync calls for a brand-new user (independent tabs, a
-    // retried request, or any future re-introduction of the double-mount
-    // race the AuthProvider comment above describes) would otherwise each
-    // create their own Circle wallet and each fund it from the same
-    // treasury wallet at once — a nonce race where one transfer can fail,
-    // and whichever call happens to win the DB insert below keeps whichever
-    // wallet it created, funded or not. An advisory lock keyed on
-    // privyUserId serializes first-time signups for the same identity so
-    // only one of them ever reaches the wallet-creation/on-chain-setup work
-    // below; the loser just waits for the lock and then finds the row
-    // already there.
+    // From here on this call either creates a brand-new user or promotes an
+    // existing listener to artist — both create-a-wallet-and/or-spend-from-
+    // the-shared-treasury-wallet operations. Two concurrent /sync calls for
+    // the same identity (independent tabs, a retried request, a
+    // double-clicked "Become Artist" button, or any future re-introduction
+    // of the double-mount race the AuthProvider comment describes) would
+    // otherwise both reach that work at once — a nonce race on the treasury
+    // wallet where one transfer can fail, and whichever call wins below
+    // keeps whichever outcome it got, funded or not. An advisory lock keyed
+    // on privyUserId serializes these for the same identity so only one
+    // call ever reaches the wallet-creation/on-chain-setup work; the loser
+    // just waits for the lock and then finds the already-updated row.
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect();
     try {
       await queryRunner.query("SELECT pg_advisory_lock(hashtext($1))", [privyUserId]);
 
-      const racedExisting = await this.userRepo.findOneBy({ privyUserId });
-      if (racedExisting) {
-        return { user: racedExisting, isNewUser: false };
+      const current = await this.userRepo.findOneBy({ privyUserId });
+      if (current) {
+        if (wantsPromotion(current)) {
+          const promoted = await this.userService.promoteToArtist(current);
+          return { user: promoted, isNewUser: false };
+        }
+        return { user: current, isNewUser: false };
       }
 
       const privyUser = await privy.getUser(privyUserId);
