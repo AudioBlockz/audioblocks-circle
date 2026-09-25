@@ -104,9 +104,9 @@ const UserMenu = () => {
                 height={50}
                 className="rounded-full w-[50px] h-[50px] object-cover"
               />
-              <div>
-                <p className="font-semibold text-white text-sm">{displayName}</p>
-                <p className="text-xs overflow-hidden text-ellipsis  text-[#A3A3A3]">
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-white text-sm truncate">{displayName}</p>
+                <p className="text-xs truncate text-[#A3A3A3]" title={profile?.email}>
                   {profile?.email ?? (profile?.walletAddress && truncateAddress(profile.walletAddress))}
                 </p>
               </div>
