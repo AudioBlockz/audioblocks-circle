@@ -22,6 +22,11 @@ import { signS3Url } from "../../utils/s3";
 const TOKEN_DECIMALS = 6;
 const TOP_N_WINNERS = 5;
 
+// How long a round stays open before autoCloseDueRounds() closes it —
+// tunable per deploy; only affects rounds opened after a change (see
+// PoolRound.closesAt). Defaults to a week if unset.
+const POOL_ROUND_DURATION_HOURS = Number(process.env.POOL_ROUND_DURATION_HOURS || 24 * 7);
+
 export class PoolService {
   private roundRepo = AppDataSource.getRepository(PoolRound);
   private depositRepo = AppDataSource.getRepository(PoolDeposit);
@@ -45,8 +50,32 @@ export class PoolService {
       roundNumber: (last?.roundNumber ?? 0) + 1,
       status: PoolRoundStatus.OPEN,
       totalDeposited: "0",
+      closesAt: new Date(Date.now() + POOL_ROUND_DURATION_HOURS * 60 * 60 * 1000),
     });
     return this.roundRepo.save(round);
+  }
+
+  // Called on a timer (see index.ts) — closes any OPEN round whose
+  // closesAt has passed, the same way an admin closing it manually would
+  // (tally, payout, snapshot, open the next one). One round's failure
+  // (e.g. a transient RPC error mid-payout) is logged and skipped rather
+  // than blocking the others, since the next tick will just retry it.
+  async autoCloseDueRounds(): Promise<void> {
+    const due = await this.roundRepo
+      .createQueryBuilder("r")
+      .where("r.status = :status", { status: PoolRoundStatus.OPEN })
+      .andWhere("r.closesAt IS NOT NULL")
+      .andWhere("r.closesAt <= :now", { now: new Date() })
+      .getMany();
+
+    for (const round of due) {
+      try {
+        await this.closeRound(round.id, null);
+        console.log(`Auto-closed pool round #${round.roundNumber}`);
+      } catch (err) {
+        console.error(`Failed to auto-close pool round #${round.roundNumber}:`, err);
+      }
+    }
   }
 
   async listArtists() {
@@ -120,6 +149,7 @@ export class PoolService {
       roundNumber: round.roundNumber,
       status: round.status,
       openedAt: round.openedAt,
+      closesAt: round.closesAt ?? null,
       totalDeposited: formatUnits(BigInt(round.totalDeposited), TOKEN_DECIMALS),
     };
 
@@ -294,15 +324,19 @@ export class PoolService {
           voteCount,
           depositCount,
           openedAt: r.openedAt,
+          closesAt: r.closesAt ?? null,
           closedAt: r.closedAt,
         };
       })
     );
   }
 
-  // The core admin action: tally votes, pick the top N, pay them out
-  // on-chain, snapshot the result, and open the next round.
-  async closeRound(roundId: string, adminUser: User) {
+  // The core round-closing action: tally votes, pick the top N, pay them out
+  // on-chain, snapshot the result, and open the next round. adminUser is
+  // null when autoCloseDueRounds() triggers this instead of an admin
+  // manually hitting the close endpoint — only used below for log
+  // attribution, never for authorization (that's the route's admin gate).
+  async closeRound(roundId: string, adminUser: User | null) {
     const round = await this.roundRepo.findOne({ where: { id: roundId } });
     if (!round) {
       throw new Error("PoolService: round not found");
@@ -429,15 +463,15 @@ export class PoolService {
     await this.roundRepo.save(round);
 
     await this.transactionLogService.createLogEntry(
-      adminUser.id,
+      adminUser?.id ?? null,
       payoutTxHash,
       "POOL_ROUND_PAYOUT",
-      `Paid out round #${round.roundNumber} to ${standings.length} winner(s)`
+      `Paid out round #${round.roundNumber} to ${standings.length} winner(s)${adminUser ? "" : " (auto-closed)"}`
     );
 
     for (const split of collabSplitsApplied) {
       await this.transactionLogService.createLogEntry(
-        adminUser.id,
+        adminUser?.id ?? null,
         payoutTxHash,
         "COLLAB_PAYOUT_SPLIT",
         `Round #${round.roundNumber} win for song ${split.songId} split across "${split.collectionTitle}" (${split.members.length} member(s))`
@@ -497,6 +531,7 @@ export class PoolService {
       status: r.status,
       totalDeposited: formatUnits(BigInt(r.totalDeposited), TOKEN_DECIMALS),
       payoutTxHash: r.payoutTxHash,
+      closesAt: r.closesAt ?? null,
       closedAt: r.closedAt,
     };
   }

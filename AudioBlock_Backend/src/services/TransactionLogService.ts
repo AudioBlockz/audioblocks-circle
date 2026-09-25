@@ -10,7 +10,7 @@ export class TransactionLogService {
         this.transactionLogRepo = AppDataSource.getRepository(TransactionLog);
     }
 
-    async createLogEntry(userId: string, txHash: string, action: string, description: string): Promise<TransactionLog> {
+    async createLogEntry(userId: string | null, txHash: string, action: string, description: string): Promise<TransactionLog> {
         const log = this.transactionLogRepo.create({
             user_id: userId,
             txHash,

@@ -7,6 +7,13 @@ import { startAIGenerationWorker } from "./workers/AIGenerationWorker";
 import fs from "fs";
 import path from "path";
 import { runSeeders } from "./seeders";
+import { PoolService } from "./services/Pool/PoolService";
+
+// How often to check for a pool round whose closesAt has passed — a check
+// interval, not the round duration itself (see POOL_ROUND_DURATION_HOURS in
+// PoolService). 5 minutes is frequent enough that a round never sits well
+// past its close time without needing to be finer-grained than that.
+const POOL_ROUND_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 
 // Ensure upload directories exist
 const uploadDirs = ["uploads/temp", "uploads/merged", "uploads/profile-images",
@@ -69,6 +76,16 @@ async function main() {
 
     // Run Seeders
     await runSeeders();
+
+    // Auto-close pool rounds once their duration elapses (see
+    // PoolService.autoCloseDueRounds). Runs immediately on boot too, so a
+    // round that came due while the server was down doesn't wait a full
+    // interval to close.
+    const poolService = new PoolService();
+    poolService.autoCloseDueRounds().catch((err) => console.error("Pool round auto-close check failed:", err));
+    setInterval(() => {
+      poolService.autoCloseDueRounds().catch((err) => console.error("Pool round auto-close check failed:", err));
+    }, POOL_ROUND_CHECK_INTERVAL_MS);
 
     // Create upload directories
     uploadDirs.forEach((dir) => {
