@@ -1,21 +1,24 @@
 import { createPublicClient, defineChain, http } from "viem";
 
-export const arcTestnet = defineChain({
-  id: 5042002,
-  name: "Arc Testnet",
+// Arc mainnet — chain id and RPC/explorer per Arc's own docs
+// (docs.arc.io/arc/references/rpc-endpoints). ARC_RPC_URL overrides the
+// default Circle-hosted endpoint if you're using a permissioned third-party
+// provider (Alchemy/Blockdaemon/dRPC/QuickNode) instead.
+export const arc = defineChain({
+  id: 5042,
+  name: "Arc",
   nativeCurrency: { name: "USD Coin", symbol: "USDC", decimals: 18 },
   rpcUrls: {
-    default: { http: [process.env.ARC_RPC_URL || "https://rpc.testnet.arc.io"] },
+    default: { http: [process.env.ARC_RPC_URL || "https://rpc.mainnet.arc.io"] },
   },
   blockExplorers: {
-    default: { name: "Arc Testnet Explorer", url: "https://testnet.arcscan.app" },
+    default: { name: "Arc Explorer", url: "https://explorer.arc.io" },
   },
-  testnet: true,
 });
 
 export const arcPublicClient = createPublicClient({
-  chain: arcTestnet,
+  chain: arc,
   transport: http(),
 });
 
-export const ARC_CAIP2 = `eip155:${arcTestnet.id}` as const;
+export const ARC_CAIP2 = `eip155:${arc.id}` as const;

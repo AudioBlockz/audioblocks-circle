@@ -3,25 +3,21 @@ import { Abi, encodeFunctionData } from "viem";
 import { arcPublicClient } from "../config/arc";
 
 // Phase A of the Privy -> Circle migration (see the "Migrate Off Privy" plan).
-// Privy's app is blocked from signing ANY transaction on Arc Testnet ("App
+// Privy's app was blocked from signing ANY transaction on Arc Testnet ("App
 // is not authorized to transact on chain eip155:5042002"), unresolved via
-// dashboard or support as of this migration. Circle is Arc's own operator —
-// Arc Testnet has first-class, no-extra-authorization support in Circle's
-// wallet products, and this project already has a working, tested
-// integration (audiobits/circle-deploy) using the exact same SDK and
-// credentials. This replaces sendArcContractTransaction() (utils/privyWallet.ts)
-// for every backend/admin-triggered on-chain call.
+// dashboard or support as of that migration. Circle is Arc's own operator —
+// Circle's wallet products have first-class, no-extra-authorization support
+// for Arc, and this project already has a working, tested integration
+// (audiobits/circle-deploy) using the exact same SDK and credentials.
 const client = initiateDeveloperControlledWalletsClient({
   apiKey: process.env.CIRCLE_API_KEY!,
   entitySecret: process.env.CIRCLE_ENTITY_SECRET!,
 });
 
-const ARC_TESTNET_BLOCKCHAIN = "ARC-TESTNET";
+const ARC_BLOCKCHAIN = "ARC";
 
-// Signs and broadcasts a contract call on Arc Testnet using the Circle
-// developer-controlled wallet at `walletAddress`. Same call shape as the
-// Privy-based sendArcContractTransaction() it replaces, so call sites only
-// need their import swapped.
+// Signs and broadcasts a contract call on Arc mainnet using the Circle
+// developer-controlled wallet at `walletAddress`.
 export async function sendCircleContractTransaction({
   walletAddress,
   to,
@@ -39,7 +35,7 @@ export async function sendCircleContractTransaction({
 
   const created = await client.createContractExecutionTransaction({
     walletAddress,
-    blockchain: ARC_TESTNET_BLOCKCHAIN,
+    blockchain: ARC_BLOCKCHAIN,
     contractAddress: to,
     callData,
     fee: { type: "level", config: { feeLevel: "MEDIUM" } },
@@ -63,13 +59,13 @@ export async function sendCircleContractTransaction({
   return txHash;
 }
 
-// Creates a new Circle developer-controlled wallet on Arc Testnet under the
+// Creates a new Circle developer-controlled wallet on Arc mainnet under the
 // given wallet set. Used to provision one wallet per artist at signup (see
 // AuthService.sync()), same role Privy's embedded-wallet-per-user played.
 export async function createCircleArcWallet(walletSetId: string): Promise<{ id: string; address: string }> {
   const created = await client.createWallets({
     walletSetId,
-    blockchains: [ARC_TESTNET_BLOCKCHAIN],
+    blockchains: [ARC_BLOCKCHAIN],
     count: 1,
     accountType: "SCA",
   });
