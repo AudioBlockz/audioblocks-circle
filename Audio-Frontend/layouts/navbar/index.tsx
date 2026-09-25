@@ -30,6 +30,18 @@ const Navbar = () => {
 
   const goToProfile = () => route.push('/dashboard/profile');
 
+  // Same preference order as the dashboard's own nav (TopNavbar/UserMenu):
+  // username/name first, otherwise just the email's local part rather than
+  // the full address — a full email has no natural width limit and this
+  // button's max-width would otherwise push its whitespace-nowrap layout
+  // very wide, or run into the wallet address fallback awkwardly.
+  const accountLabel =
+    profile?.username ||
+    profile?.name ||
+    profile?.email?.split('@')[0] ||
+    (profile?.walletAddress && truncateAddress(profile.walletAddress)) ||
+    'Account';
+
 
   useEffect(() => {
     const handleScroll = () => {
@@ -111,10 +123,11 @@ const Navbar = () => {
             </button>
           ) : (
             <button
-              className="px-4 cursor-pointer py-2 gap-3 rounded-4xl bg-[#D2045B] hover:bg-[#B8043F] flex justify-between items-center text-white font-bold transition-all duration-200 whitespace-nowrap text-sm hover:scale-105 shadow-lg hover:shadow-xl"
+              className="px-4 cursor-pointer py-2 gap-3 rounded-4xl bg-[#D2045B] hover:bg-[#B8043F] flex justify-between items-center text-white font-bold transition-all duration-200 whitespace-nowrap text-sm hover:scale-105 shadow-lg hover:shadow-xl max-w-[180px]"
               onClick={goToProfile}
+              title={profile?.email}
             >
-              {profile?.email ?? (profile?.walletAddress && truncateAddress(profile.walletAddress))}
+              <span className="truncate min-w-0">{accountLabel}</span>
             </button>
           )}
         </div>
@@ -179,8 +192,9 @@ const Navbar = () => {
                   <button
                     className="mt-6 w-full px-4 py-2 rounded-full bg-[#D2045B] hover:bg-[#B8043F] text-white font-medium text-sm flex justify-center items-center gap-2"
                     onClick={goToProfile}
+                    title={profile?.email}
                   >
-                    {profile?.email ?? (profile?.walletAddress && truncateAddress(profile.walletAddress))}
+                    <span className="truncate min-w-0">{accountLabel}</span>
                   </button>
                 )}
               </motion.div>
