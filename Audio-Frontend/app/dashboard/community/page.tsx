@@ -375,7 +375,7 @@ const CommunityTabs = () => {
                 <p className="text-[#A3A3A3] text-xs">Round</p>
                 <p className="text-xl font-semibold">#{currentRound.roundNumber}</p>
               </div>
-              <div className="flex items-center gap-2 ml-auto">
+              <div className="flex flex-wrap items-center gap-2 w-full md:w-auto md:ml-auto">
                 <input
                   type="text"
                   inputMode="decimal"
@@ -526,7 +526,8 @@ const CommunityTabs = () => {
               ) : currentStandings.length === 0 ? (
                 <p className="text-[#A3A3A3] text-sm">No songs to vote for yet.</p>
               ) : (
-                <table className="w-full text-sm text-left text-gray-300 border border-gray-800 rounded-lg overflow-hidden">
+                <div className="overflow-x-auto">
+                <table className="w-full min-w-[560px] text-sm text-left text-gray-300 border border-gray-800 rounded-lg overflow-hidden">
                   <thead className="text-[#A3A3A3] font-semibold text-sm">
                     <tr>
                       <th className="px-6 py-3">#</th>
@@ -551,6 +552,7 @@ const CommunityTabs = () => {
                     ))}
                   </tbody>
                 </table>
+                </div>
               )}
             </div>
           )}
@@ -558,7 +560,7 @@ const CommunityTabs = () => {
           <p className="text-white text-sm mb-4">Past closed rounds:</p>
 
           {closedRounds.length > 1 && (
-            <div className="flex gap-2 mb-6">
+            <div className="flex flex-wrap gap-2 mb-6">
               {closedRounds.map((r) => (
                 <button
                   key={r.id}
@@ -578,7 +580,8 @@ const CommunityTabs = () => {
           ) : closedRounds.length === 0 ? (
             <p className="text-[#A3A3A3] text-sm">No rounds closed yet — check back after the first payout.</p>
           ) : (
-            <table className="w-full text-sm text-left text-gray-300 border border-gray-800 rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-sm text-left text-gray-300 border border-gray-800 rounded-lg overflow-hidden">
               <thead className="text-[#A3A3A3] font-semibold text-sm">
                 <tr>
                   <th className="px-6 py-3">#</th>
@@ -600,6 +603,7 @@ const CommunityTabs = () => {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </TabsContent>
       </Tabs>

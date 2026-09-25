@@ -9,7 +9,7 @@ const ArtistFeatures = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Title */}
         <div className="text-center mb-16">
-          <h2 className="font-['Poppins'] mx-auto w-[60%] font-semibold text-[40px] leading-[100%] tracking-[0%] text-center capitalize text-white">
+          <h2 className="font-['Poppins'] mx-auto w-full sm:w-[85%] md:w-[60%] font-semibold text-2xl sm:text-3xl md:text-[40px] leading-[120%] md:leading-[100%] tracking-[0%] text-center capitalize text-white">
             Everything You Need To Track, Grow, And Monetize Your Music
           </h2>
         </div>

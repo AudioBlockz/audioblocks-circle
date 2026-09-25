@@ -174,7 +174,8 @@ const AdminRoundsPage = () => {
       ) : rounds.length === 0 ? (
         <p className="text-[#A3A3A3] text-sm">No rounds yet.</p>
       ) : (
-        <table className="w-full text-sm text-left text-gray-300 border border-gray-800 rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] text-sm text-left text-gray-300 border border-gray-800 rounded-lg overflow-hidden">
           <thead className="text-[#A3A3A3] font-semibold text-sm">
             <tr>
               <th className="px-6 py-3">#</th>
@@ -228,6 +229,7 @@ const AdminRoundsPage = () => {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </>
   );

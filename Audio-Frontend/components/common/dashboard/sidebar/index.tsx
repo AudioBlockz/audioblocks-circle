@@ -34,15 +34,27 @@ const Sidebar = () => {
 
   return (
     <>
-      {/* Hamburger for mobile */}
-      <div className="md:hidden p-4">
+      {/* Hamburger for mobile — relative z-50 so it stays above the fixed
+          drawer (z-40) once open; otherwise the drawer covers this same
+          top-left corner and the button becomes untappable to close it. */}
+      <div className="md:hidden relative z-50 p-4">
         <button
           onClick={() => setOpen(!open)}
           className="text-white focus:outline-none"
+          aria-label={open ? "Close menu" : "Open menu"}
         >
           {open ? <X size={24} /> : <Menu size={24} />}
         </button>
       </div>
+
+      {/* Backdrop — lets tapping outside the drawer close it too, not just
+          picking a nav link. */}
+      {open && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/50 z-30"
+          onClick={() => setOpen(false)}
+        />
+      )}
 
       {/* Sidebar */}
       <aside

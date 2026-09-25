@@ -25,11 +25,11 @@ const ArtistHubHero = () => {
       <div className="relative z-10 max-w-6xl mt-20 mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-8">
         {/* Main Heading */}
         <div className="max-w-[580px] space-y-4">
-          <h1 className="font-['Poppins'] font-extrabold text-[48px] leading-[100%] tracking-[0%] text-center text-white">
+          <h1 className="font-['Poppins'] font-extrabold text-[32px] sm:text-[40px] md:text-[48px] leading-[110%] md:leading-[100%] tracking-[0%] text-center text-white">
             Monetize, Grow & Engage
           </h1>
 
-          <p className="font-['Inter'] font-medium text-[20px] leading-[150%] tracking-[-2%] text-center text-[#A3A3A3] max-w-3xl mx-auto">
+          <p className="font-['Inter'] font-medium text-base md:text-[20px] leading-[150%] tracking-[-2%] text-center text-[#A3A3A3] max-w-3xl mx-auto">
             Build a real music career with tools designed to help you connect with your fans and get
             paid.
           </p>
@@ -58,8 +58,8 @@ const ArtistHubHero = () => {
       </div>
 
       {/* Hero Image at Center */}
-      <div className="relative z-10 mt-12 flex justify-center">
-        <div className="relative w-[1145px] h-[494px]">
+      <div className="relative z-10 mt-12 w-full px-4 flex justify-center">
+        <div className="relative w-full max-w-[1145px] aspect-[1145/494]">
           <Image src="/artist_hub/HeroImage.png" alt="Hero Image" fill className="object-contain" />
         </div>
       </div>

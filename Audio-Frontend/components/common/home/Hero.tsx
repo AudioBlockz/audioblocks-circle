@@ -58,8 +58,8 @@ const Hero = () => {
     if (isArtist) route.push('/artist-hub');
   };
   return (
-    <section className="relative h-screen text-white py-35 overflow-hidden">
-      <div className="absolute right-40 top-2 bg-[#490D3E80] rounded-full w-100 h-100 blur-[100px]" />
+    <section className="relative h-auto md:h-screen text-white py-16 md:py-35 overflow-hidden">
+      <div className="absolute right-10 md:right-40 top-2 bg-[#490D3E80] rounded-full w-100 h-100 blur-[100px]" />
       <div className="w-4/5 mx-auto flex flex-col-reverse md:flex-row items-center justify-between">
         <div className="">
           <h1 className="text-3xl md:text-4xl font-extrabold leading-tight mb-6">
@@ -103,8 +103,8 @@ const Hero = () => {
           </div>
         </div>
 
-        <div className="relative flex items-center justify-center">
-          <div className="relative w-[250px] h-[250px] z-20 rounded-2xl overflow-hidden border border-[#D9D9D9]">
+        <div className="relative flex items-center justify-center mb-10 md:mb-0">
+          <div className="relative w-[160px] h-[160px] sm:w-[200px] sm:h-[200px] md:w-[250px] md:h-[250px] z-20 rounded-2xl overflow-hidden border border-[#D9D9D9]">
             <Image
               src="/home/frame1.jpg"
               alt="Main Artist"
@@ -113,7 +113,7 @@ const Hero = () => {
             />
           </div>
 
-          <div className="absolute -top-15 -left-14 scale-x-[-1]  w-[250px] h-[250px] z-10 border border-[#885FA833] rounded-2xl overflow-hidden">
+          <div className="absolute -top-8 -left-9 sm:-top-11 sm:-left-11 md:-top-15 md:-left-14 scale-x-[-1] w-[160px] h-[160px] sm:w-[200px] sm:h-[200px] md:w-[250px] md:h-[250px] z-10 border border-[#885FA833] rounded-2xl overflow-hidden">
             <Image
               src="/home/frame2.jpg"
               alt="Secondary Artist"

@@ -279,132 +279,207 @@ export default function Player() {
           playing (see the always-mounted <audio> below) but this heavy bar
           doesn't follow you around the rest of the site. */}
       {isDashboard && (
-        <div className="fixed bottom-0 left-0 right-0 bg-[#272727] px-8 py-3 shadow-lg z-50">
-          <div className="flex items-center justify-between w-full max-w-7xl mx-auto">
-            {/* Left Controls */}
+        <div className="fixed bottom-0 left-0 right-0 bg-[#272727] shadow-lg z-50">
+          {/* Compact bar — below md. The full desktop bar's 10+ controls,
+              a progress readout, and a volume flyout simply don't fit a
+              phone width, so this is a deliberately pared-down layout
+              rather than a squeezed version of the same one: cover, a
+              truncating title/artist, transport, and a full-width progress
+              scrubber on its own row. */}
+          <div className="md:hidden px-3 py-2">
             <div className="flex items-center gap-3">
-              <button
-                onClick={toggleShuffle}
-                disabled={isRealTrack}
-                className={`hover:text-gray-300 cursor-pointer text-white disabled:opacity-30 disabled:cursor-not-allowed ${shuffle ? 'text-pink-500' : ''}`}
-              >
-                <Shuffle size={16} />
-              </button>
+              <div className="h-10 w-10 relative shrink-0">
+                <Image src={track.cover} alt={track.title} fill className="rounded-md object-cover" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white text-xs font-medium truncate">{track.title}</p>
+                <p className="text-gray-400 text-[11px] truncate">{track.artist}</p>
+              </div>
               <button
                 onClick={handlePrev}
-                className="hover:text-gray-300 cursor-pointer text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                className="text-white shrink-0 cursor-pointer"
+                aria-label="Previous"
               >
                 <SkipBack size={16} />
               </button>
               <button
                 onClick={togglePlay}
-                className="p-2 rounded-full bg-white flex items-center cursor-pointer justify-center"
+                className="p-2 rounded-full bg-white flex items-center justify-center cursor-pointer shrink-0"
+                aria-label={isPlaying ? 'Pause' : 'Play'}
               >
                 {isPlaying ? (
-                  <FaPause size={14} className="text-gray-800" />
+                  <FaPause size={12} className="text-gray-800" />
                 ) : (
-                  <FaPlay size={14} className="text-gray-800" />
+                  <FaPlay size={12} className="text-gray-800" />
                 )}
               </button>
               <button
                 onClick={handleNext}
                 disabled={isRealTrack && !hasNextInQueue}
-                className="hover:text-gray-300 text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                className="text-white shrink-0 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                aria-label="Next"
               >
-                <SkipForward size={15} />
+                <SkipForward size={16} />
               </button>
-              <button onClick={toggleRepeat} className={`hover:text-gray-300 text-white ${repeat ? 'text-pink-500' : ''}`}>
-                <Repeat size={16} />
-              </button>
-            </div>
-
-            {/* Track Info */}
-            <div className="h-12 w-12 relative">
-              <Image src={track.cover} alt={track.title} fill className="rounded-md object-cover" />
-            </div>
-            <div className="flex items-center gap-4 w-2/5">
-              <div className="flex-1">
-                <div className="flex items-center justify-center mb-3">
-                  <div className="text-white font-medium mr-4 text-sm truncate">{track.title}</div>
-                  <div className="text-gray-400 flex items-center text-xs truncate">
-                    <Dot size={20} className="mr-4 text-white" /> {track.artist}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-white w-8">{formatTime(progress)}</span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={duration}
-                    step={1}
-                    value={progress}
-                    onChange={(e) => {
-                      const newTime = Number(e.target.value);
-                      if (audioRef.current) {
-                        audioRef.current.currentTime = newTime;
-                        setProgress(newTime);
-                      }
-                    }}
-                    className="w-full h-1 bg-gray-600 rounded appearance-none cursor-pointer accent-[#D2045B]"
-                    style={{
-                      background: `linear-gradient(to right, #B6195B 0%, #B6195B ${
-                        (progress / duration) * 100
-                      }%, rgb(82, 82, 82) ${(progress / duration) * 100}%, rgb(82, 82, 82) 100%)`,
-                    }}
-                  />
-                  <span className="text-xs text-white w-8 text-right">
-                    {formatTime(duration)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Controls */}
-            <div className="flex items-center border-l-2 pl-4 gap-4 relative">
               <button
-                className="hover:text-gray-300 cursor-pointer text-white disabled:opacity-30 disabled:cursor-not-allowed"
                 onClick={() => setShowComments(true)}
                 disabled={!isRealTrack}
+                className="text-white shrink-0 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                aria-label="Comments"
               >
                 <MessageSquare size={16} />
               </button>
-              <button className="hover:text-gray-300 cursor-pointer text-white">
-                <ListPlus size={16} />
-              </button>
-              <button
-                className="hover:text-gray-300 font-bold cursor-pointer text-white flex items-center gap-1 disabled:opacity-30 disabled:cursor-not-allowed"
-                onClick={handleToggleLike}
-                disabled={!isRealTrack}
-              >
-                <Heart size={16} className={liked ? 'fill-[#D2045B] text-[#D2045B]' : ''} />
-                {isRealTrack && likeCount > 0 && (
-                  <span className="text-xs text-white">{likeCount}</span>
-                )}
-              </button>
-              <button className="hover:text-gray-300 cursor-pointer text-white">
-                <Ellipsis size={16} />
-              </button>
-              <div className="relative group flex items-center justify-center">
-                <button className="hover:text-gray-300 text-white" onClick={handleVolumeToggle}>
-                  {isMuted || volume === 0 ? <FaVolumeMute size={16} /> : <FaVolumeUp size={16} />}
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={duration}
+              step={1}
+              value={progress}
+              onChange={(e) => {
+                const newTime = Number(e.target.value);
+                if (audioRef.current) {
+                  audioRef.current.currentTime = newTime;
+                  setProgress(newTime);
+                }
+              }}
+              className="w-full h-1 mt-2 bg-gray-600 rounded appearance-none cursor-pointer accent-[#D2045B]"
+              style={{
+                background: `linear-gradient(to right, #B6195B 0%, #B6195B ${
+                  (progress / duration) * 100
+                }%, rgb(82, 82, 82) ${(progress / duration) * 100}%, rgb(82, 82, 82) 100%)`,
+              }}
+            />
+          </div>
+
+          {/* Full bar — md and up. */}
+          <div className="hidden md:block px-8 py-3">
+            <div className="flex items-center justify-between w-full max-w-7xl mx-auto">
+              {/* Left Controls */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={toggleShuffle}
+                  disabled={isRealTrack}
+                  className={`hover:text-gray-300 cursor-pointer text-white disabled:opacity-30 disabled:cursor-not-allowed ${shuffle ? 'text-pink-500' : ''}`}
+                >
+                  <Shuffle size={16} />
                 </button>
-                <div className="absolute bottom-16 p-4 rounded-md bg-[#161616] rotate-[-90deg] items-center justify-center hidden group-hover:flex">
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.01}
-                    value={isMuted ? 0 : volume}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value);
-                      setVolume(val);
-                      if (audioRef.current) {
-                        audioRef.current.muted = false;
-                      }
-                      setIsMuted(false);
-                    }}
-                    className="w-24 h-1 bg-gray-300 rounded appearance-none cursor-pointer accent-[#D2045B]"
-                  />
+                <button
+                  onClick={handlePrev}
+                  className="hover:text-gray-300 cursor-pointer text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <SkipBack size={16} />
+                </button>
+                <button
+                  onClick={togglePlay}
+                  className="p-2 rounded-full bg-white flex items-center cursor-pointer justify-center"
+                >
+                  {isPlaying ? (
+                    <FaPause size={14} className="text-gray-800" />
+                  ) : (
+                    <FaPlay size={14} className="text-gray-800" />
+                  )}
+                </button>
+                <button
+                  onClick={handleNext}
+                  disabled={isRealTrack && !hasNextInQueue}
+                  className="hover:text-gray-300 text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <SkipForward size={15} />
+                </button>
+                <button onClick={toggleRepeat} className={`hover:text-gray-300 text-white ${repeat ? 'text-pink-500' : ''}`}>
+                  <Repeat size={16} />
+                </button>
+              </div>
+
+              {/* Track Info */}
+              <div className="h-12 w-12 relative">
+                <Image src={track.cover} alt={track.title} fill className="rounded-md object-cover" />
+              </div>
+              <div className="flex items-center gap-4 w-2/5">
+                <div className="flex-1">
+                  <div className="flex items-center justify-center mb-3">
+                    <div className="text-white font-medium mr-4 text-sm truncate">{track.title}</div>
+                    <div className="text-gray-400 flex items-center text-xs truncate">
+                      <Dot size={20} className="mr-4 text-white" /> {track.artist}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-white w-8">{formatTime(progress)}</span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={duration}
+                      step={1}
+                      value={progress}
+                      onChange={(e) => {
+                        const newTime = Number(e.target.value);
+                        if (audioRef.current) {
+                          audioRef.current.currentTime = newTime;
+                          setProgress(newTime);
+                        }
+                      }}
+                      className="w-full h-1 bg-gray-600 rounded appearance-none cursor-pointer accent-[#D2045B]"
+                      style={{
+                        background: `linear-gradient(to right, #B6195B 0%, #B6195B ${
+                          (progress / duration) * 100
+                        }%, rgb(82, 82, 82) ${(progress / duration) * 100}%, rgb(82, 82, 82) 100%)`,
+                      }}
+                    />
+                    <span className="text-xs text-white w-8 text-right">
+                      {formatTime(duration)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Controls */}
+              <div className="flex items-center border-l-2 pl-4 gap-4 relative">
+                <button
+                  className="hover:text-gray-300 cursor-pointer text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                  onClick={() => setShowComments(true)}
+                  disabled={!isRealTrack}
+                >
+                  <MessageSquare size={16} />
+                </button>
+                <button className="hover:text-gray-300 cursor-pointer text-white">
+                  <ListPlus size={16} />
+                </button>
+                <button
+                  className="hover:text-gray-300 font-bold cursor-pointer text-white flex items-center gap-1 disabled:opacity-30 disabled:cursor-not-allowed"
+                  onClick={handleToggleLike}
+                  disabled={!isRealTrack}
+                >
+                  <Heart size={16} className={liked ? 'fill-[#D2045B] text-[#D2045B]' : ''} />
+                  {isRealTrack && likeCount > 0 && (
+                    <span className="text-xs text-white">{likeCount}</span>
+                  )}
+                </button>
+                <button className="hover:text-gray-300 cursor-pointer text-white">
+                  <Ellipsis size={16} />
+                </button>
+                <div className="relative group flex items-center justify-center">
+                  <button className="hover:text-gray-300 text-white" onClick={handleVolumeToggle}>
+                    {isMuted || volume === 0 ? <FaVolumeMute size={16} /> : <FaVolumeUp size={16} />}
+                  </button>
+                  <div className="absolute bottom-16 p-4 rounded-md bg-[#161616] rotate-[-90deg] items-center justify-center hidden group-hover:flex">
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      value={isMuted ? 0 : volume}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        setVolume(val);
+                        if (audioRef.current) {
+                          audioRef.current.muted = false;
+                        }
+                        setIsMuted(false);
+                      }}
+                      className="w-24 h-1 bg-gray-300 rounded appearance-none cursor-pointer accent-[#D2045B]"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -428,8 +503,12 @@ export default function Player() {
           onMouseLeave={() => setDockHovered(false)}
         >
           <div
-            className={`mb-3 flex items-center gap-5 rounded-full px-6 py-3 bg-gradient-to-r from-[#D2045B] to-[#885FA8] shadow-[0_0_30px_rgba(210,4,91,0.55)] backdrop-blur-md transition-transform duration-300 ease-out ${
-              dockHovered ? 'translate-y-0' : 'translate-y-[150%]'
+            // Touch devices have no :hover, so dockHovered can never become
+            // true there — the unprefixed translate-y-0 keeps the dock
+            // permanently visible below md; the md: pair restores the
+            // hover-to-reveal behavior for pointer devices.
+            className={`mb-3 flex items-center gap-5 rounded-full px-6 py-3 bg-gradient-to-r from-[#D2045B] to-[#885FA8] shadow-[0_0_30px_rgba(210,4,91,0.55)] backdrop-blur-md transition-transform duration-300 ease-out translate-y-0 ${
+              dockHovered ? 'md:translate-y-0' : 'md:translate-y-[150%]'
             }`}
           >
             <button

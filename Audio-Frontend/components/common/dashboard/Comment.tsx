@@ -92,7 +92,7 @@ const Comment = ({ onClose, songId }: CommentPanelProps) => {
       exit={{ y: 300, opacity: 0 }}
       transition={{ type: 'spring', stiffness: 200, damping: 20 }}
       ref={menuRef}
-      className="fixed bottom-0 pb-20 right-0 bg-[#1e1e1e] w-80 max-w-sm h-[90vh] p-4 z-50 flex flex-col"
+      className="fixed bottom-0 pb-20 left-0 right-0 sm:left-auto bg-[#1e1e1e] w-full sm:w-80 sm:max-w-sm h-[90vh] p-4 z-50 flex flex-col"
     >
       <div className="flex items-center border-b pb-3 justify-between mb-4">
         <h2 className="text-[#A3A3A3] text-lg font-bold">Comments</h2>

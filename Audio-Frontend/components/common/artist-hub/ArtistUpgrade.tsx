@@ -30,17 +30,17 @@ const ArtistUpgrade = () => {
       <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         {/* Multi-line Title */}
         <div className="mb-8">
-          <h1 className="font-['Poppins'] font-semibold text-[48px] leading-[120%] tracking-[0%] text-center text-white mb-2">
+          <h1 className="font-['Poppins'] font-semibold text-3xl sm:text-4xl md:text-[48px] leading-[120%] tracking-[0%] text-center text-white mb-2">
             Upgrade <span className="text-[#A3A3A3]"> Your </span>  Experience
           </h1>
-          <h2 className="font-['Poppins'] font-semibold text-[48px] leading-[120%] tracking-[0%] text-center text-[#A3A3A3]">
+          <h2 className="font-['Poppins'] font-semibold text-3xl sm:text-4xl md:text-[48px] leading-[120%] tracking-[0%] text-center text-[#A3A3A3]">
             with Audioblocks
           </h2>
         </div>
 
         {/* Subtitle */}
         <div className="mb-12">
-          <p className="font-['Inter']  w-[60%]  font-medium text-[20px] leading-[150%] tracking-[-2%] text-center text-[#A3A3A3] max-w-3xl mx-auto">
+          <p className="font-['Inter'] w-full sm:w-[80%] md:w-[60%] font-medium text-base md:text-[20px] leading-[150%] tracking-[-2%] text-center text-[#A3A3A3] max-w-3xl mx-auto">
             No more passive listening, Stream and enjoy your music while earning on Audioblocks
           </p>
         </div>

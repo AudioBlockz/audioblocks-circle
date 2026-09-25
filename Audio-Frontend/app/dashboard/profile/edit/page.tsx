@@ -119,7 +119,7 @@ const EditProfile = () => {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-30">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-30">
         <form onSubmit={handleSubmit} className="lg:col-span-2 space-y-6">
           <div>
             <label className="block mb-2 text-base font-medium">Display name</label>
