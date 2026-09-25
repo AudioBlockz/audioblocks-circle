@@ -10,9 +10,11 @@ import {
   ListMusic,
   BarChart2,
   Users,
+  Shield,
   Menu,
   X
 } from "lucide-react"
+import { Auth } from "@/hooks/useAuth"
 
 const navItems = [
   { name: "Explore", href: "/dashboard", icon: House },
@@ -21,9 +23,14 @@ const navItems = [
   { name: "Community", href: "/dashboard/community", icon: Users },
 ]
 
+const adminNavItem = { name: "Admin", href: "/dashboard/admin", icon: Shield }
+
 const Sidebar = () => {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
+  const { profile } = Auth()
+
+  const items = profile?.role === "admin" ? [...navItems, adminNavItem] : navItems
 
   return (
     <>
@@ -50,7 +57,7 @@ const Sidebar = () => {
 
         {/* Nav Links */}
         <nav className="flex flex-col gap-2 mb-10">
-          {navItems.map(({ name, href, icon: Icon }) => {
+          {items.map(({ name, href, icon: Icon }) => {
             const isActive = pathname === href
             return (
               <Link
